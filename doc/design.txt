@@ -1,0 +1,17 @@
+
+Design of SHM
+-------------
+Author: Bela Ban
+Date:   June 2021
+
+The idea is that every member creates its ManyToOneRingBuffer queue under LOCATION, e.g. /dev/shm/<clustername>/uuid-1
+(the UUID is the unique 16-byte identity of a member). When a member leaves or crashes, this buffer is removed.
+
+Every member continually calls rb.read(MessageHandler) to receive messages.
+
+Every member maintains a hashmap of UUIDs/ManyToOneRingBuffers.
+
+A multicast message writes the message to all buffers except self.
+
+A unicast message looks up the buffer associated with the target address and write the data to it.
+
