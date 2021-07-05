@@ -4,10 +4,16 @@ Design of SHM
 Author: Bela Ban
 Date:   June 2021
 
-The idea is that every member creates its ManyToOneRingBuffer queue under LOCATION, e.g. /dev/shm/<clustername>/uuid-1
-(the UUID is the unique 16-byte identity of a member). When a member leaves or crashes, this buffer is removed.
+SHM is a JGroups transport, to be used only by processes on the same host. It uses shared memory to exchange messages,
+which should be faster than using TCP/IP sockets or UDP datagram sockets.
 
-Every member continually calls rb.read(MessageHandler) to receive messages.
+The purpose of this project is to provide SHM and then to benchmark it against TCP and UDP.
+
+The idea is that every member creates its (Agrona) ManyToOneRingBuffer queue under LOCATION,
+e.g. /dev/shm/<clustername>/uuid-1 (the UUID is the unique 16-byte identity of a member).
+When a member leaves or crashes, this buffer is removed.
+
+Every member continually calls rb.read(MessageHandler), coupled with an IdleStrategy, to receive messages.
 
 Every member maintains a hashmap of UUIDs/ManyToOneRingBuffers.
 
