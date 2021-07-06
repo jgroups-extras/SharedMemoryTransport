@@ -5,10 +5,12 @@ import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.*;
 import org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer;
 import org.jgroups.logging.Log;
-import org.jgroups.util.*;
+import org.jgroups.util.DefaultThreadFactory;
+import org.jgroups.util.Runner;
+import org.jgroups.util.ThreadFactory;
+import org.jgroups.util.Util;
 
 import java.io.Closeable;
-import java.io.DataInput;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -25,7 +27,7 @@ import java.util.function.Consumer;
  */
 public class SharedMemoryBuffer implements MessageHandler, Closeable {
     protected final String        file_name;   // name of the shared memory-mapped file (e.g. /tmp/shm/uuid-1
-    protected final Consumer<DataInput> consumer; // a received message calls consumer.receive();
+    protected final Consumer<ByteBuffer> consumer; // a received message calls consumer.receive();
     protected FileChannel         channel;     // the memory-mapped file
     protected UnsafeBuffer        buffer;
     protected ManyToOneRingBuffer rb;
@@ -33,7 +35,7 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
     protected IdleStrategy        idle_strategy=new BackoffIdleStrategy();
     protected final Log           log;
 
-    public SharedMemoryBuffer(String file_name, Consumer<DataInput> c, int buffer_length, Log log) throws IOException {
+    public SharedMemoryBuffer(String file_name, Consumer<ByteBuffer> c, int buffer_length, Log log) throws IOException {
         this.file_name=file_name;
         this.consumer=Objects.requireNonNull(c);
         this.log=log;
@@ -69,8 +71,7 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
     public void onMessage(int msg_type, MutableDirectBuffer buf, int offset, int length) {
         ByteBuffer bb=buf.byteBuffer();
         bb.position(offset);
-        ByteBufferInputStream in=new ByteBufferInputStream(buf.byteBuffer());
-        consumer.accept(in);
+        consumer.accept(bb);
     }
 
     public void close() {

@@ -10,12 +10,14 @@ import org.jgroups.conf.AttributeType;
 import org.jgroups.protocols.TP;
 import org.jgroups.shm.SharedMemoryBuffer;
 import org.jgroups.stack.IpAddress;
+import org.jgroups.util.ByteBufferInputStream;
 import org.jgroups.util.UUID;
 import org.jgroups.util.Util;
 
 import java.io.DataInput;
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
@@ -30,7 +32,7 @@ import java.util.function.Consumer;
  */
 @MBean(description="Transport which exchanges messages by adding them to shared memory. This works only when all " +
   "members are processes on the same host")
-public class SHM extends TP implements Consumer<DataInput> {
+public class SHM extends TP implements Consumer<ByteBuffer> {
 
     @Property(description="Folder under which the memory-mapped files for the queues are created.")
     protected String             location="/tmp/shm";
@@ -119,8 +121,9 @@ public class SHM extends TP implements Consumer<DataInput> {
     }
 
     @Override
-    public void accept(DataInput in) {
+    public void accept(ByteBuffer bb) {
         try {
+            DataInput in=new ByteBufferInputStream(bb);
             receive(null, in);
         }
         catch(Exception ex) {
