@@ -2,8 +2,6 @@ package org.jgroups.shm.mpsc;
 
 import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 import org.jgroups.Global;
-import org.jgroups.logging.Log;
-import org.jgroups.logging.LogFactory;
 import org.jgroups.shm.SharedMemoryBuffer;
 import org.jgroups.util.SizeStreamable;
 import org.jgroups.util.Util;
@@ -11,32 +9,25 @@ import org.jgroups.util.Util;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.function.Consumer;
 
 /**
  * @author Bela Ban
  * @since x.y
  */
-public class SampleProducer2 implements Consumer<ByteBuffer> {
+public class SampleProducer2 {
     public static final String FILE_NAME = "/Users/bela/tmp/shm/broadcast2";
     public static final int TOTAL_BUFFER_LENGTH=(2 << 15) + RingBufferDescriptor.TRAILER_LENGTH;
-    protected final Log log=LogFactory.getLog(SampleProducer2.class);
 
     protected int                age=10;
     protected SharedMemoryBuffer buf;
 
-    @Override
-    public void accept(ByteBuffer bb) {
-
-    }
 
     protected void start() throws Exception {
-        buf=new SharedMemoryBuffer(FILE_NAME, this, TOTAL_BUFFER_LENGTH, log);
+        buf=new SharedMemoryBuffer(FILE_NAME, TOTAL_BUFFER_LENGTH).deleteFileOnExit(true);
         for(;;) {
             Person p=new Person(age > 30? "Old Bela" : "Bela", age);
             byte[] data=Util.streamableToByteBuffer(p);
-            buf.add(data, 0, data.length);
+            buf.write(data, 0, data.length);
             ++age;
             Util.sleep(1000);
         }
