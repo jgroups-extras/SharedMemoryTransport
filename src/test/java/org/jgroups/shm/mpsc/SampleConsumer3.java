@@ -44,8 +44,8 @@ public class SampleConsumer3 implements BiConsumer<ByteBuffer,Integer> {
     }
 
     protected void start() throws IOException {
-        buf=new SharedMemoryBuffer(SampleProducer3.FILE_NAME, SampleProducer3.TOTAL_BUFFER_LENGTH)
-          .setConsumer(this);
+        buf=new SharedMemoryBuffer(SampleProducer3.FILE_NAME, SampleProducer3.TOTAL_BUFFER_LENGTH, true)
+          .setConsumer(this).deleteFileOnExit(true);
     }
 
 
