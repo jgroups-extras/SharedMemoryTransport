@@ -37,7 +37,7 @@ public class SHM extends TP implements BiConsumer<ByteBuffer,Integer> {
     protected String             location="/tmp/shm";
 
     @Property(description="Max capacity of a queue (in bytes)",type=AttributeType.BYTES)
-    protected int                queue_capacity=2 << 22;
+    protected int                queue_capacity=2 << 22; // ca 8MB
 
     @Property(description="The max time (in millis) a receiver loop should park when idle. 0=default",
       type=AttributeType.TIME)
