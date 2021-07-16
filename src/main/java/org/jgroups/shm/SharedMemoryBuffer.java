@@ -32,7 +32,6 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
     protected final String         file_name;   // name of the shared memory-mapped file (e.g. /tmp/shm/uuid-1
     protected BiConsumer<ByteBuffer,Integer> consumer; // a received message calls consumer.receive();
     protected FileChannel          channel;     // the memory-mapped file
-    protected UnsafeBuffer         buffer;
     protected ManyToOneRingBuffer  rb;
     protected final Runner         runner;
     protected IdleStrategy         idle_strategy;
@@ -122,7 +121,17 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
               new OpenOption[]{StandardOpenOption.READ, StandardOpenOption.WRITE};
 
             channel=FileChannel.open(Paths.get(file_name), options);
-            buffer=new UnsafeBuffer(channel.map(FileChannel.MapMode.READ_WRITE, 0, buffer_length));
+            UnsafeBuffer buffer=new UnsafeBuffer(channel.map(FileChannel.MapMode.READ_WRITE, 0, buffer_length));
+
+            ByteBuffer bb=buffer.byteBuffer();
+            byte[] tmp=new byte[buffer_length];
+
+            // Francesco Nigro: zero the buffer so all pages are in memory
+            if(create)
+                bb.put(tmp);
+            else
+                bb.get(tmp);
+            bb.rewind();
             rb=new ManyToOneRingBuffer(buffer);
         }
         catch(IOException ex) {
