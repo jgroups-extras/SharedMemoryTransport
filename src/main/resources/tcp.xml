@@ -11,13 +11,11 @@
         xmlns="urn:org:jgroups"
         xsi:schemaLocation="urn:org:jgroups http://www.jgroups.org/schema/jgroups.xsd"
         >
-    <shm.SHM
+    <TCP
             bind_addr="loopback"
-            location="/Users/bela/tmp/shm/"
-            queue_capacity="8388608"
     />
     <RED />
-    <PING />
+    <MPING mcast_addr="228.1.1.1"/>
     <MERGE3 max_interval="30000"
             min_interval="10000"/>
     <FD_SOCK2 port_range="5"/>
