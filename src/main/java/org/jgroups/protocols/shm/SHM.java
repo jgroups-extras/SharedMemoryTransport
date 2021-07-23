@@ -62,10 +62,9 @@ public class SHM extends TP implements BiConsumer<ByteBuffer,Integer> {
     public void init() throws Exception {
         int cap=Util.getNextHigherPowerOfTwo(queue_capacity);
         if(queue_capacity != cap) {
-            log.error("queue_capacity (%d) must be a power of 2, changing it to %d", queue_capacity, cap);
+            log.warn("queue_capacity (%d) must be a power of 2, changing it to %d", queue_capacity, cap);
             queue_capacity=cap;
         }
-
         File f=new File(location);
         if(!f.exists())
             throw new IllegalArgumentException("location %s does not exist");
