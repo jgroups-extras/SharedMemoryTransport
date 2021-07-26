@@ -33,7 +33,7 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
     protected final String         file_name;   // name of the shared memory-mapped file (e.g. /tmp/shm/uuid-1
     protected BiConsumer<ByteBuffer,Integer> consumer; // a received message calls consumer.receive();
     protected FileChannel          channel;     // the memory-mapped file
-    protected ManyToOneRingBuffer  rb;
+    protected RingBuffer           rb;
     protected final Runner         runner;
     protected IdleStrategy         idle_strategy;
     protected boolean              delete_file_on_exit;
