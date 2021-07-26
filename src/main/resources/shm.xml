@@ -13,7 +13,7 @@
         >
     <shm.SHM
             bind_addr="loopback"
-            location="/Users/bela/tmp/shm/"
+            location="/tmp/shm/"
             queue_capacity="60M"
     />
     <RED />
