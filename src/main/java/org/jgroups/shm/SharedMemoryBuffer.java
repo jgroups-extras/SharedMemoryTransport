@@ -4,6 +4,7 @@ package org.jgroups.shm;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.*;
 import org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer;
+import org.agrona.concurrent.ringbuffer.RingBuffer;
 import org.jgroups.util.DefaultThreadFactory;
 import org.jgroups.util.Runner;
 import org.jgroups.util.ThreadFactory;
@@ -19,12 +20,12 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 /**
  * Wraps {@link org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer}. Can be used for writing; reading is enabled
- * by setting a consumer ({@link #setConsumer(Consumer)}).
+ * by setting a consumer ({@link #setConsumer(BiConsumer)}).
  * @author Bela Ban
  * @since  1.0.0
  */
@@ -36,6 +37,7 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
     protected final Runner         runner;
     protected IdleStrategy         idle_strategy;
     protected boolean              delete_file_on_exit;
+    protected final LongAdder      insufficient_capacity=new LongAdder();
 
 
     public SharedMemoryBuffer(String file_name, int buffer_length, boolean create) throws IOException {
@@ -52,6 +54,8 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
 
 
     public SharedMemoryBuffer idleStrategy(IdleStrategy s) {idle_strategy=Objects.requireNonNull(s); return this;}
+    public long               insufficientCapacity()       {return insufficient_capacity.sum();}
+    public SharedMemoryBuffer resetStats()                 {insufficient_capacity.reset(); return this;}
 
     public SharedMemoryBuffer maxSleep(long m) {
         long max_sleep_ns=TimeUnit.NANOSECONDS.convert(m, TimeUnit.MILLISECONDS);
@@ -65,7 +69,8 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
             File tmp=new File(file_name);
             tmp.deleteOnExit();
         }
-        return this;}
+        return this;
+    }
 
     public SharedMemoryBuffer setConsumer(BiConsumer<ByteBuffer,Integer> c) {
         consumer=Objects.requireNonNull(c);
@@ -85,6 +90,8 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
                 rb.abort(claim_index);
             }
         }
+        else if(claim_index == RingBuffer.INSUFFICIENT_CAPACITY)
+            insufficient_capacity.increment();
     }
 
     /**

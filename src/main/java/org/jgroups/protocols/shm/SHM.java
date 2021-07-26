@@ -5,6 +5,7 @@ import org.jgroups.Address;
 import org.jgroups.Event;
 import org.jgroups.PhysicalAddress;
 import org.jgroups.annotations.MBean;
+import org.jgroups.annotations.ManagedAttribute;
 import org.jgroups.annotations.ManagedOperation;
 import org.jgroups.annotations.Property;
 import org.jgroups.conf.AttributeType;
@@ -34,21 +35,26 @@ import java.util.function.BiConsumer;
 public class SHM extends TP implements BiConsumer<ByteBuffer,Integer> {
 
     @Property(description="Folder under which the memory-mapped files for the queues are created.")
-    protected String             location="/tmp/shm";
+    protected String                                location="/tmp/shm";
 
     @Property(description="Max capacity of a queue (in bytes)",type=AttributeType.BYTES)
-    protected int                queue_capacity=2 << 22; // ca 8MB
+    protected int                                   queue_capacity=2 << 22; // ca 8MB
 
     @Property(description="The max time (in millis) a receiver loop should park when idle. 0=default",
       type=AttributeType.TIME)
-    protected long               max_sleep;
+    protected long                                  max_sleep;
 
-    protected SharedMemoryBuffer buf;
+    protected SharedMemoryBuffer                    buf;
 
     protected final Map<Address,SharedMemoryBuffer> cache=new ConcurrentHashMap<>();
 
-    protected static final PhysicalAddress PHYSICAL_ADDRESS=new IpAddress(10000);
+    protected static final PhysicalAddress          PHYSICAL_ADDRESS=new IpAddress(10000);
 
+
+    @ManagedAttribute(description="The sum of failed writes due to insufficient capacity of all ring buffers")
+    public int getFailedWritesDueToInsufficientCapacity() {
+        return cache.values().stream().mapToInt(c -> (int)c.insufficientCapacity()).sum();
+    }
 
     @ManagedOperation(description="Changes max_sleep")
     public void maxSleep(long ms) {
@@ -69,6 +75,11 @@ public class SHM extends TP implements BiConsumer<ByteBuffer,Integer> {
         if(!f.exists())
             throw new IllegalArgumentException("location %s does not exist");
         super.init();
+    }
+
+    public void resetStats() {
+        super.resetStats();
+        cache.values().forEach(SharedMemoryBuffer::resetStats);
     }
 
     @Override
