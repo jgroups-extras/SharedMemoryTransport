@@ -80,13 +80,14 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
         return this;
     }
 
-    public void write(byte[] buf, int offset, int length) {
+    public boolean write(byte[] buf, int offset, int length) {
         int claim_index=rb.tryClaim(1, length);
         if(claim_index > 0) {
             try {
                 AtomicBuffer bb=rb.buffer();
                 bb.putBytes(claim_index, buf, offset, length);
                 rb.commit(claim_index);
+                return true;
             }
             catch(Throwable t) {
                 rb.abort(claim_index);
@@ -94,6 +95,7 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
         }
         else if(claim_index == RingBuffer.INSUFFICIENT_CAPACITY)
             insufficient_capacity.increment();
+        return false;
     }
 
     /**

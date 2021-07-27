@@ -44,17 +44,35 @@ public class ManyToOnePerf implements Receiver, Consumer<ByteBuffer> {
                 long msgs=msgs_after-msgs_before, bytes=bytes_after-bytes_before;
                 double msgs_per_sec=msgs / (STATS_INTERVAL / 1000.0),
                   bytes_per_sec=bytes/(STATS_INTERVAL/1000.0);
-                System.out.printf("-- %.2f msgs/sec %s/sec\n", msgs_per_sec, Util.printBytes(bytes_per_sec));
+                System.out.printf("-- read %,.2f msgs/sec %s/sec\n", msgs_per_sec, Util.printBytes(bytes_per_sec));
             }
         }
     }
 
     public void startSenders(int msg_size, int num_threads) {
         Sender[] senders=new Sender[num_threads];
+        LongAdder sent_msgs=new LongAdder();
         for(int i=0; i < senders.length; i++) {
-            senders[i]=new Sender(msg_size);
+            senders[i]=new Sender(msg_size, sent_msgs);
             senders[i].setName("sender-" + i);
             senders[i].start();
+        }
+        for(;;) {
+            long msgs_before=sent_msgs.sum(), bytes_before=msgs_before*msg_size,
+              failed_writes_before=buf.insufficientCapacity();
+            Util.sleep(STATS_INTERVAL);
+            long msgs_after=sent_msgs.sumThenReset(), bytes_after=msgs_after * msg_size,
+              failed_writes_after=buf.insufficientCapacity();
+            buf.resetStats();
+            if(msgs_after > msgs_before) {
+                long msgs=msgs_after-msgs_before, bytes=bytes_after-bytes_before,
+                  failed_writes=failed_writes_after-failed_writes_before;
+                double msgs_per_sec=msgs / (STATS_INTERVAL / 1000.0),
+                  bytes_per_sec=bytes/(STATS_INTERVAL/1000.0);
+                System.out.printf("-- sent %,.2f msgs/sec %s/sec (failed writes/sec: %s)\n",
+                                  msgs_per_sec, Util.printBytes(bytes_per_sec),
+                                  String.format("%,.2f", failed_writes/(STATS_INTERVAL/1000.0)));
+            }
         }
     }
 
@@ -68,16 +86,19 @@ public class ManyToOnePerf implements Receiver, Consumer<ByteBuffer> {
 
 
     protected class Sender extends Thread {
-        protected final int size;
+        protected final int       size;
+        protected final LongAdder sent;
 
-        public Sender(int size) {
+        public Sender(int size, LongAdder sent) {
             this.size=size;
+            this.sent=sent;
         }
 
         @Override public void run() {
             byte[] buffer=new byte[size];
             for(;;) {
-                buf.write(buffer, 0, buffer.length);
+                if(buf.write(buffer, 0, buffer.length))
+                    sent.increment();
             }
         }
     }
