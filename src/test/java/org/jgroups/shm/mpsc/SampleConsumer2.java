@@ -5,17 +5,17 @@ import org.jgroups.util.Util;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * @author Bela Ban
  * @since x.y
  */
-public class SampleConsumer2 implements BiConsumer<ByteBuffer,Integer> {
+public class SampleConsumer2 implements Consumer<ByteBuffer> {
     protected SharedMemoryBuffer buf;
 
     @Override
-    public void accept(ByteBuffer bb, Integer length) {
+    public void accept(ByteBuffer bb) {
         try {
             SampleProducer2.Person p=Util.streamableFromByteBuffer(SampleProducer2.Person.class, bb);
             System.out.printf("%s\n", p);

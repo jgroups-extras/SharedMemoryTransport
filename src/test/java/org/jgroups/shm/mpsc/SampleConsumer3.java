@@ -9,21 +9,20 @@ import org.jgroups.util.ByteArrayDataInputStream;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.function.BiConsumer;
-
+import java.util.function.Consumer;
 
 /**
  * @author Bela Ban
  * @since x.y
  */
-public class SampleConsumer3 implements BiConsumer<ByteBuffer,Integer> {
+public class SampleConsumer3 implements Consumer<ByteBuffer> {
     protected SharedMemoryBuffer   buf;
     protected final MessageFactory msg_factory=new DefaultMessageFactory();
 
     @Override
-    public void accept(ByteBuffer bb, Integer length) {
-        byte[] array=new byte[length];
-        bb.get(array, 0, length);
+    public void accept(ByteBuffer bb) {
+        byte[] array=new byte[bb.remaining()];
+        bb.get(array);
         ByteArrayDataInputStream in=new ByteArrayDataInputStream(array);
 
         short version=0;
