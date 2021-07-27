@@ -16,7 +16,7 @@
             location="/tmp/shm/"
             queue_capacity="8M"
     />
-    <RED />
+    <!--RED /-->
     <PING />
     <MERGE3 max_interval="30000"
             min_interval="10000"/>
