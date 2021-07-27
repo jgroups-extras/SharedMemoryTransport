@@ -73,7 +73,7 @@ public class SHM extends TP implements BiConsumer<ByteBuffer,Integer> {
         }
         File f=new File(location);
         if(!f.exists())
-            throw new IllegalArgumentException("location %s does not exist");
+            throw new IllegalArgumentException(String.format("location %s does not exist", location));
         super.init();
     }
 
