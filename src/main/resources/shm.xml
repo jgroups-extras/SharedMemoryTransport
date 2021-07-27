@@ -14,7 +14,7 @@
     <shm.SHM
             bind_addr="loopback"
             location="/tmp/shm/"
-            queue_capacity="60M"
+            queue_capacity="8M"
     />
     <RED />
     <PING />
