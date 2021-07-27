@@ -33,7 +33,7 @@ import java.util.function.Consumer;
   "members are processes on the same host")
 public class SHM extends TP implements Consumer<ByteBuffer> {
 
-    protected final class LeakyByteBufferInputStream extends ByteBufferInputStream {
+    protected static final class LeakyByteBufferInputStream extends ByteBufferInputStream {
 
         public LeakyByteBufferInputStream(ByteBuffer buf) {
             super(buf);
@@ -161,7 +161,7 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
         try {
             LeakyByteBufferInputStream receiveStream = this.cachedReceiveStream;
             if (receiveStream == null || receiveStream.buf() != bb) {
-                receiveStream = new LeakyByteBufferInputStream(bb);
+                receiveStream =new LeakyByteBufferInputStream(bb);
                 this.cachedReceiveStream = null;
             }
             receive(null, receiveStream);

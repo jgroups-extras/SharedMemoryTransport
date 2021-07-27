@@ -109,13 +109,13 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
     public void onMessage(int msg_type, MutableDirectBuffer buf, int offset, int length) {
         if(msg_type != 1)
             return;
-        final ByteBuffer readBuffer = this.readBuffer;
-        readBuffer.position(offset);
-        readBuffer.limit(offset + length);
+        final ByteBuffer readbuf = this.readBuffer;
+        readbuf.position(offset);
+        readbuf.limit(offset + length);
         try {
-            consumer.accept(readBuffer);
+            consumer.accept(readbuf);
         } finally {
-            readBuffer.clear();
+            readbuf.clear();
         }
     }
 
