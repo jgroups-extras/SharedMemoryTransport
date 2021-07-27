@@ -21,19 +21,21 @@ import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Wraps {@link org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer}. Can be used for writing; reading is enabled
- * by setting a consumer ({@link #setConsumer(BiConsumer)}).
+ * by setting a consumer ({@link #setConsumer(Consumer)}).
  * @author Bela Ban
  * @since  1.0.0
  */
 public class SharedMemoryBuffer implements MessageHandler, Closeable {
+
     protected final String         file_name;   // name of the shared memory-mapped file (e.g. /tmp/shm/uuid-1
-    protected BiConsumer<ByteBuffer,Integer> consumer; // a received message calls consumer.receive();
+    protected Consumer<ByteBuffer> consumer;    // a received message calls consumer.receive();
     protected FileChannel          channel;     // the memory-mapped file
     protected RingBuffer           rb;
+    protected ByteBuffer           readBuffer;
     protected final Runner         runner;
     protected IdleStrategy         idle_strategy;
     protected boolean              delete_file_on_exit;
@@ -72,7 +74,7 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
         return this;
     }
 
-    public SharedMemoryBuffer setConsumer(BiConsumer<ByteBuffer,Integer> c) {
+    public SharedMemoryBuffer setConsumer(Consumer<ByteBuffer> c) {
         consumer=Objects.requireNonNull(c);
         runner.start();
         return this;
@@ -107,8 +109,14 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
     public void onMessage(int msg_type, MutableDirectBuffer buf, int offset, int length) {
         if(msg_type != 1)
             return;
-        ByteBuffer bb=buf.byteBuffer().position(offset);
-        consumer.accept(bb,length);
+        final ByteBuffer readBuffer = this.readBuffer;
+        readBuffer.position(offset);
+        readBuffer.limit(offset + length);
+        try {
+            consumer.accept(readBuffer);
+        } finally {
+            readBuffer.clear();
+        }
     }
 
     public void close() {
@@ -140,6 +148,7 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
                 bb.get(tmp);
             bb.rewind();
             rb=new ManyToOneRingBuffer(buffer);
+            readBuffer=buffer.byteBuffer().asReadOnlyBuffer();
         }
         catch(IOException ex) {
             close();

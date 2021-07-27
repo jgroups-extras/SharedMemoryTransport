@@ -14,7 +14,6 @@ import org.jgroups.shm.SharedMemoryBuffer;
 import org.jgroups.stack.IpAddress;
 import org.jgroups.util.*;
 
-import java.io.DataInput;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -23,7 +22,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Transport using shared memory to exchange messages
@@ -32,7 +31,18 @@ import java.util.function.BiConsumer;
  */
 @MBean(description="Transport which exchanges messages by adding them to shared memory. This works only when all " +
   "members are processes on the same host")
-public class SHM extends TP implements BiConsumer<ByteBuffer,Integer> {
+public class SHM extends TP implements Consumer<ByteBuffer> {
+
+    protected final class LeakyByteBufferInputStream extends ByteBufferInputStream {
+
+        public LeakyByteBufferInputStream(ByteBuffer buf) {
+            super(buf);
+        }
+
+        private ByteBuffer buf() {
+            return buf;
+        }
+    }
 
     @Property(description="Folder under which the memory-mapped files for the queues are created.")
     protected String                                location="/tmp/shm";
@@ -45,6 +55,8 @@ public class SHM extends TP implements BiConsumer<ByteBuffer,Integer> {
     protected long                                  max_sleep;
 
     protected SharedMemoryBuffer                    buf;
+
+    protected LeakyByteBufferInputStream            cachedReceiveStream;
 
     protected final Map<Address,SharedMemoryBuffer> cache=new ConcurrentHashMap<>();
 
@@ -145,10 +157,14 @@ public class SHM extends TP implements BiConsumer<ByteBuffer,Integer> {
     }
 
     @Override
-    public void accept(ByteBuffer bb, Integer length) {
+    public void accept(ByteBuffer bb) {
         try {
-            DataInput in=new ByteBufferInputStream(bb);
-            receive(null, in);
+            LeakyByteBufferInputStream receiveStream = this.cachedReceiveStream;
+            if (receiveStream == null || receiveStream.buf() != bb) {
+                receiveStream = new LeakyByteBufferInputStream(bb);
+                this.cachedReceiveStream = null;
+            }
+            receive(null, receiveStream);
         }
         catch(Exception ex) {
             log.error("failed handling message", ex);

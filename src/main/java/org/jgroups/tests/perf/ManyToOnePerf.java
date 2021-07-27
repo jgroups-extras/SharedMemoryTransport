@@ -8,14 +8,14 @@ import org.jgroups.util.Util;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Tests performance of {@link org.jgroups.shm.SharedMemoryBuffer}. Start one receiver with sender=false (this one needs
  * to be started first), and all others with sender=true. The receiver prints stats every N seconds.
  * @author Bela Ban (belaban@gmail.com)
  */
-public class ManyToOnePerf implements Receiver, BiConsumer<ByteBuffer,Integer> {
+public class ManyToOnePerf implements Receiver, Consumer<ByteBuffer> {
     protected SharedMemoryBuffer buf;
     protected final LongAdder    msgs_received=new LongAdder();
     protected final LongAdder    bytes_received=new LongAdder();
@@ -59,8 +59,9 @@ public class ManyToOnePerf implements Receiver, BiConsumer<ByteBuffer,Integer> {
     }
 
     @Override
-    public void accept(ByteBuffer buf, Integer length) {
-        buf.get(receive_buffer, 0, length);
+    public void accept(ByteBuffer buf) {
+        final int length = buf.remaining();
+        buf.get(receive_buffer);
         msgs_received.increment();
         bytes_received.add(length);
     }
