@@ -1,7 +1,6 @@
 package org.jgroups.tests.perf;
 
 import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
-import org.jgroups.Receiver;
 import org.jgroups.shm.SharedMemoryBuffer;
 import org.jgroups.util.Util;
 
@@ -15,7 +14,7 @@ import java.util.function.Consumer;
  * to be started first), and all others with sender=true. The receiver prints stats every N seconds.
  * @author Bela Ban (belaban@gmail.com)
  */
-public class ManyToOnePerf implements Receiver, Consumer<ByteBuffer> {
+public class ManyToOnePerf implements Consumer<ByteBuffer> {
     protected SharedMemoryBuffer buf;
     protected final LongAdder    msgs_received=new LongAdder();
     protected final LongAdder    bytes_received=new LongAdder();
