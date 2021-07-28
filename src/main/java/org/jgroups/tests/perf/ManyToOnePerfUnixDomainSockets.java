@@ -28,7 +28,7 @@ public class ManyToOnePerfUnixDomainSockets {
 
     protected void start(int msg_size, int num_threads, boolean sender, String shared_file) throws Exception {
 
-        // To use Unix Doamin Sockets, uncomment below
+        // To use Unix Domain Sockets, uncomment below
 
         address=new InetSocketAddress(InetAddress.getLoopbackAddress(), 7800); //UnixDomainSocketAddress.of(shared_file);
         if(sender)
