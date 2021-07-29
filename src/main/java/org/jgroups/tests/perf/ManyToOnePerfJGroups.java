@@ -1,40 +1,39 @@
 package org.jgroups.tests.perf;
 
-import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
-import org.jgroups.shm.SharedMemoryBuffer;
+import org.jgroups.*;
+import org.jgroups.util.MessageBatch;
 import org.jgroups.util.Util;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.Consumer;
 
 /**
- * Tests performance of {@link SharedMemoryBuffer}. Start one receiver with sender=false (this one needs
- * to be started first), and all others with sender=true. The receiver prints stats every N seconds.
+ * Tests performance multiple senders sending messages to a single receiver (the first member in the cluster)
  * @author Bela Ban (belaban@gmail.com)
  */
-public class ManyToOnePerfJGroups implements Consumer<ByteBuffer> {
-    protected SharedMemoryBuffer buf;
+public class ManyToOnePerfJGroups implements Receiver {
+    protected JChannel           ch;
+    protected volatile Address   coord;
     protected final LongAdder    msgs_received=new LongAdder();
     protected final LongAdder    bytes_received=new LongAdder();
-    protected byte[]             receive_buffer;
     protected static final long  STATS_INTERVAL=10_000; // interval (ms) at which we print stats
 
-    protected void start(int msg_size, int num_threads, boolean sender, String shared_file, int queue_size)
-      throws IOException {
-        buf=new SharedMemoryBuffer(shared_file, queue_size+ RingBufferDescriptor.TRAILER_LENGTH, !sender);
-        if(sender)
-            startSenders(msg_size, num_threads);
+    protected void start(int msg_size, int num_threads, String props, String name) throws Exception {
+        ch=new JChannel(props).setName(name).setReceiver(this).connect("many-to-one-perf");
+        View v=ch.getView();
+        coord=v.getCoord();
+        boolean receiver=Objects.equals(ch.getAddress(), coord);
+        if(receiver) {
+            System.out.println("** first member, will act as receiver");
+            startReceiver();
+        }
         else {
-            buf.deleteFileOnExit(true);
-            startReceiver(msg_size);
+            System.out.printf("** %s: will send messages to %s\n", ch.getAddress(), coord);
+            startSenders(msg_size, num_threads);
         }
     }
 
-    public void startReceiver(int msg_size) {
-        receive_buffer=new byte[msg_size];
-        buf.setConsumer(this);
+    public void startReceiver() {
         for(;;) {
             long msgs_before=msgs_received.sum(), bytes_before=bytes_received.sum();
             Util.sleep(STATS_INTERVAL);
@@ -57,32 +56,38 @@ public class ManyToOnePerfJGroups implements Consumer<ByteBuffer> {
             senders[i].start();
         }
         for(;;) {
-            long msgs_before=sent_msgs.sum(), bytes_before=msgs_before*msg_size,
-              failed_writes_before=buf.insufficientCapacity();
+            long msgs_before=sent_msgs.sum(), bytes_before=msgs_before*msg_size;
             Util.sleep(STATS_INTERVAL);
-            long msgs_after=sent_msgs.sumThenReset(), bytes_after=msgs_after * msg_size,
-              failed_writes_after=buf.insufficientCapacity();
-            buf.resetStats();
+            long msgs_after=sent_msgs.sumThenReset(), bytes_after=msgs_after * msg_size;
             if(msgs_after > msgs_before) {
-                long msgs=msgs_after-msgs_before, bytes=bytes_after-bytes_before,
-                  failed_writes=failed_writes_after-failed_writes_before;
+                long msgs=msgs_after-msgs_before, bytes=bytes_after-bytes_before;
                 double msgs_per_sec=msgs / (STATS_INTERVAL / 1000.0),
                   bytes_per_sec=bytes/(STATS_INTERVAL/1000.0);
-                System.out.printf("-- sent %,.2f msgs/sec %s/sec (failed writes/sec: %s)\n",
-                                  msgs_per_sec, Util.printBytes(bytes_per_sec),
-                                  String.format("%,.2f", failed_writes/(STATS_INTERVAL/1000.0)));
+                System.out.printf("-- sent %,.2f msgs/sec %s/sec\n", msgs_per_sec, Util.printBytes(bytes_per_sec));
             }
         }
     }
 
     @Override
-    public void accept(ByteBuffer buf) {
-        final int length = buf.remaining();
-        buf.get(receive_buffer);
-        msgs_received.increment();
-        bytes_received.add(length);
+    public void viewAccepted(View v) {
+        Address new_coord=v.getCoord();
+        boolean has_new_coord=Objects.equals(new_coord, coord);
+        System.out.printf("** view: %s %s\n", v, has_new_coord? String.format("(new coord: %s)", new_coord) : "");
+        coord=new_coord;
     }
 
+    @Override
+    public void receive(Message msg) {
+        byte[] buf=msg.getObject();
+        msgs_received.increment();
+        bytes_received.add(buf.length);
+    }
+
+    @Override
+    public void receive(MessageBatch batch) {
+        msgs_received.add(batch.size());
+        bytes_received.add(batch.length());
+    }
 
     protected class Sender extends Thread {
         protected final int       size;
@@ -96,17 +101,22 @@ public class ManyToOnePerfJGroups implements Consumer<ByteBuffer> {
         @Override public void run() {
             byte[] buffer=new byte[size];
             for(;;) {
-                if(buf.write(buffer, 0, buffer.length))
+                try {
+                    ch.send(new ObjectMessage(coord, buffer));
                     sent.increment();
+                }
+                catch(Exception e) {
+                    e.printStackTrace();
+                    break;
+                }
             }
         }
     }
 
 
-    public static void main(String[] args) throws IOException {
-        int msg_size=1000, num_threads=100, queue_size=2 << 22;
-        boolean sender=false;
-        String shared_file="/tmp/shm/perftest";
+    public static void main(String[] args) throws Exception {
+        int msg_size=1000, num_threads=100;
+        String props="shm.xml", name=null;
 
         for(int i=0; i < args.length; i++) {
             if(args[i].equals("-msg_size")) {
@@ -117,31 +127,22 @@ public class ManyToOnePerfJGroups implements Consumer<ByteBuffer> {
                 num_threads=Integer.parseInt(args[++i]);
                 continue;
             }
-            if("-sender".equals(args[i])) {
-                sender=Boolean.parseBoolean(args[++i]);
+            if("-props".equals(args[i])) {
+                props=args[++i];
                 continue;
             }
-            if("-file".equals(args[i])) {
-                shared_file=args[++i];
-                continue;
-            }
-            if("-queue_size".equals(args[i])) {
-                queue_size=Integer.parseInt(args[++i]);
+            if("-name".equals(args[i])) {
+                name=args[++i];
                 continue;
             }
             System.out.println("ManyToOnePerf [-msg_size <bytes>] [-num_threads <threads>] " +
-                                 "[-sender true|false] [-file <shared file>] [-queue_size <bytes>]");
+                                 "[-props <config>] [-name <name>]");
             return;
         }
 
-        int cap=Util.getNextHigherPowerOfTwo(queue_size);
-        if(queue_size != cap) {
-            System.err.printf("queue_size (%d) must be a power of 2, changing it to %d\n", queue_size, cap);
-            queue_size=cap;
-        }
 
         final ManyToOnePerfJGroups test=new ManyToOnePerfJGroups();
-        test.start(msg_size, num_threads, sender, shared_file, queue_size);
+        test.start(msg_size, num_threads, props, name);
     }
 
 
