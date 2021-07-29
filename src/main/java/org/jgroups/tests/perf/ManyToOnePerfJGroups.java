@@ -102,7 +102,9 @@ public class ManyToOnePerfJGroups implements Receiver {
             byte[] buffer=new byte[size];
             for(;;) {
                 try {
-                    ch.send(new ObjectMessage(coord, buffer));
+                    Message msg=new ObjectMessage(coord, buffer);
+                    // Message msg=new ObjectMessage(null, buffer); // .setFlag(Message.TransientFlag.DONT_LOOPBACK);
+                    ch.send(msg);
                     sent.increment();
                 }
                 catch(Exception e) {
