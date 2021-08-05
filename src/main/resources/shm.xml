@@ -15,6 +15,7 @@
             bind_addr="loopback"
             location="/tmp/shm/"
             queue_capacity="8M"
+            use_fibers="${use_fibers:false}"
     />
     <!--RED /-->
     <PING />

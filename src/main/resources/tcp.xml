@@ -13,6 +13,13 @@
         >
     <TCP
             bind_addr="loopback"
+            bind_port="7800"
+            recv_buf_size="500K"
+            send_buf_size="500K"
+            buffered_input_stream_size="65K"
+            buffered_output_stream_size="65K"
+            tcp_nodelay="false"
+            use_fibers="${use_fibers:true}"
     />
     <RED />
     <MPING mcast_addr="228.1.1.1"/>
