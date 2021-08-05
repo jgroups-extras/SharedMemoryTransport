@@ -43,7 +43,7 @@ public class SampleConsumer3 implements Consumer<ByteBuffer> {
     }
 
     protected void start() throws IOException {
-        buf=new SharedMemoryBuffer(SampleProducer3.FILE_NAME, SampleProducer3.TOTAL_BUFFER_LENGTH, true)
+        buf=new SharedMemoryBuffer(SampleProducer3.FILE_NAME, SampleProducer3.TOTAL_BUFFER_LENGTH, true, null)
           .setConsumer(this).deleteFileOnExit(true);
     }
 

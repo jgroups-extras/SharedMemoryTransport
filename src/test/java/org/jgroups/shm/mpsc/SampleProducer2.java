@@ -23,7 +23,7 @@ public class SampleProducer2 {
 
 
     protected void start() throws Exception {
-        buf=new SharedMemoryBuffer(FILE_NAME, TOTAL_BUFFER_LENGTH, true).deleteFileOnExit(true);
+        buf=new SharedMemoryBuffer(FILE_NAME, TOTAL_BUFFER_LENGTH, true, null).deleteFileOnExit(true);
         for(;;) {
             Person p=new Person(age > 30? "Old Bela" : "Bela", age);
             byte[] data=Util.streamableToByteBuffer(p);

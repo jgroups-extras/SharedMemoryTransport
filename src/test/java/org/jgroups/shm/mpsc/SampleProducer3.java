@@ -21,7 +21,7 @@ public class SampleProducer3 {
 
 
     protected void start() throws Exception {
-        buf=new SharedMemoryBuffer(FILE_NAME, TOTAL_BUFFER_LENGTH, true); // .deleteFileOnExit(true);
+        buf=new SharedMemoryBuffer(FILE_NAME, TOTAL_BUFFER_LENGTH, true, null); // .deleteFileOnExit(true);
 
         Address sender=Util.createRandomAddress("B");
         Message msg=new ObjectMessage(null, "hello world from Bela").setFlag(Message.Flag.OOB)

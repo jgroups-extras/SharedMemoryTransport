@@ -42,7 +42,7 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
     protected final LongAdder      insufficient_capacity=new LongAdder();
 
 
-    public SharedMemoryBuffer(String file_name, int buffer_length, boolean create) throws IOException {
+    public SharedMemoryBuffer(String file_name, int buffer_length, boolean create, ThreadFactory f) throws IOException {
         this.file_name=file_name;
         // idle stragegy spins, the yields, then parks between 1000ns and 64ms by default
         idle_strategy=new BackoffIdleStrategy(BackoffIdleStrategy.DEFAULT_MAX_SPINS,
@@ -50,7 +50,7 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
                                               BackoffIdleStrategy.DEFAULT_MIN_PARK_PERIOD_NS,
                                               BackoffIdleStrategy.DEFAULT_MAX_PARK_PERIOD_NS<<6);
         init(buffer_length, create);
-        ThreadFactory tf=new DefaultThreadFactory("runner", true, true);
+        ThreadFactory tf=f != null? f : new DefaultThreadFactory("runner", true, true);
         runner=new Runner(tf, String.format("shm-%s", file_name), this::doWork, null);
     }
 
