@@ -129,7 +129,8 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
             case Event.CONNECT_WITH_STATE_TRANSFER:
             case Event.CONNECT_WITH_STATE_TRANSFER_USE_FLUSH:
                 try {
-                    buf=createBuffer(local_addr, null, true).setConsumer(this).deleteFileOnExit(true);
+                    buf=createBuffer(local_addr, null, true, thread_factory)
+                      .setConsumer(this).deleteFileOnExit(true);
                     if(max_sleep > 0)
                         buf.maxSleep(max_sleep);
                     cache.putIfAbsent(local_addr, buf);
@@ -193,9 +194,12 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
     }
 
 
-    protected SharedMemoryBuffer createBuffer(Address addr, String logical_name, boolean create) throws IOException {
+    protected SharedMemoryBuffer createBuffer(Address addr, String logical_name, boolean create,
+                                              ThreadFactory thread_factory) throws IOException {
         String buffer_name=addressToFilename(addr, logical_name);
-        return new SharedMemoryBuffer(buffer_name, queue_capacity+ RingBufferDescriptor.TRAILER_LENGTH, create);
+        return new SharedMemoryBuffer(buffer_name,
+                                      queue_capacity+ RingBufferDescriptor.TRAILER_LENGTH,
+                                      create, thread_factory);
     }
 
     protected String addressToFilename(Address addr, String logical_name) {
@@ -222,7 +226,7 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
     protected SharedMemoryBuffer getOrCreateBuffer(Address addr) throws IOException {
         SharedMemoryBuffer shm_buf=cache.get(addr);
         if(shm_buf == null) {
-            shm_buf=createBuffer(addr, null, false);
+            shm_buf=createBuffer(addr, null, false, thread_factory);
             SharedMemoryBuffer tmp=cache.putIfAbsent(addr, shm_buf);
             if(tmp != null)
                 shm_buf=tmp;
@@ -241,7 +245,7 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
             String logical_name=t.getVal2();
             Address uuid=t.getVal1();
             if(!cache.containsKey(uuid))
-                cache.putIfAbsent(uuid, createBuffer(uuid, logical_name, false));
+                cache.putIfAbsent(uuid, createBuffer(uuid, logical_name, false, thread_factory));
             addPhysicalAddressToCache(uuid, PHYSICAL_ADDRESS);
         }
     }
