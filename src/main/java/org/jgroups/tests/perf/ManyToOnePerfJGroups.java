@@ -1,7 +1,10 @@
 package org.jgroups.tests.perf;
 
 import org.jgroups.*;
+import org.jgroups.protocols.TP;
+import org.jgroups.util.DefaultThreadFactory;
 import org.jgroups.util.MessageBatch;
+import org.jgroups.util.ThreadFactory;
 import org.jgroups.util.Util;
 
 import java.util.Objects;
@@ -16,10 +19,19 @@ public class ManyToOnePerfJGroups implements Receiver {
     protected volatile Address   coord;
     protected final LongAdder    msgs_received=new LongAdder();
     protected final LongAdder    bytes_received=new LongAdder();
-    protected static final long  STATS_INTERVAL=10_000; // interval (ms) at which we print stats
+    protected ThreadFactory      thread_factory;
+    protected static final long  STATS_INTERVAL=2_000; // interval (ms) at which we print stats
 
-    protected void start(int msg_size, int num_threads, String props, String name) throws Exception {
-        ch=new JChannel(props).setName(name).setReceiver(this).connect("many-to-one-perf");
+    protected void start(int msg_size, int num_threads, String props, String name, boolean use_fibers) throws Exception {
+        thread_factory=new DefaultThreadFactory("invoker", false, true)
+          .useFibers(use_fibers);
+        ch=new JChannel(props).setName(name).setReceiver(this);
+        if(use_fibers && Util.fibersAvailable()) {
+            TP transport=ch.getProtocolStack().getTransport();
+            transport.useFibers(true);
+            System.out.println("-- using fibers instead of threads");
+        }
+        ch.connect("many-to-one-perf");
         View v=ch.getView();
         coord=v.getCoord();
         boolean receiver=Objects.equals(ch.getAddress(), coord);
@@ -29,6 +41,7 @@ public class ManyToOnePerfJGroups implements Receiver {
         }
         else {
             System.out.printf("** %s: will send messages to %s\n", ch.getAddress(), coord);
+            ch.setReceiver(null);
             startSenders(msg_size, num_threads);
         }
     }
@@ -52,8 +65,8 @@ public class ManyToOnePerfJGroups implements Receiver {
         LongAdder sent_msgs=new LongAdder();
         for(int i=0; i < senders.length; i++) {
             senders[i]=new Sender(msg_size, sent_msgs);
-            senders[i].setName("sender-" + i);
-            senders[i].start();
+            Thread t=thread_factory.newThread(senders[i], "sender-" + i);
+            t.start();
         }
         for(;;) {
             long msgs_before=sent_msgs.sum(), bytes_before=msgs_before*msg_size;
@@ -78,7 +91,7 @@ public class ManyToOnePerfJGroups implements Receiver {
 
     @Override
     public void receive(Message msg) {
-        byte[] buf=msg.getObject();
+        byte[] buf=msg.getArray();
         msgs_received.increment();
         bytes_received.add(buf.length);
     }
@@ -89,7 +102,7 @@ public class ManyToOnePerfJGroups implements Receiver {
         bytes_received.add(batch.length());
     }
 
-    protected class Sender extends Thread {
+    protected class Sender implements Runnable {
         protected final int       size;
         protected final LongAdder sent;
 
@@ -102,8 +115,14 @@ public class ManyToOnePerfJGroups implements Receiver {
             byte[] buffer=new byte[size];
             for(;;) {
                 try {
-                    Message msg=new ObjectMessage(coord, buffer);
-                    // Message msg=new ObjectMessage(null, buffer); // .setFlag(Message.TransientFlag.DONT_LOOPBACK);
+                    // we can't use DONT_LOOPBACK: https://issues.redhat.com/browse/JGRP-1835
+                    Message msg=new BytesMessage(null, buffer); // .setFlag(Message.TransientFlag.DONT_LOOPBACK);
+                    // Message msg=new BytesMessage(coord, buffer);
+
+                    // if these 2 flags are used (=uncommented), then perf increases greatly!
+                    // msg.setFlag(Message.Flag.NO_FC);
+                    // msg.setFlag(Message.Flag.NO_RELIABILITY);
+
                     ch.send(msg);
                     sent.increment();
                 }
@@ -119,6 +138,7 @@ public class ManyToOnePerfJGroups implements Receiver {
     public static void main(String[] args) throws Exception {
         int msg_size=1000, num_threads=100;
         String props="shm.xml", name=null;
+        boolean use_fibers=true;
 
         for(int i=0; i < args.length; i++) {
             if(args[i].equals("-msg_size")) {
@@ -137,14 +157,18 @@ public class ManyToOnePerfJGroups implements Receiver {
                 name=args[++i];
                 continue;
             }
-            System.out.println("ManyToOnePerf [-msg_size <bytes>] [-num_threads <threads>] " +
-                                 "[-props <config>] [-name <name>]");
+            if("-use_fibers".equals(args[i])) {
+                use_fibers=Boolean.parseBoolean(args[++i]);
+                continue;
+            }
+            System.out.println("ManyToOnePerfJGroups [-msg_size <bytes>] [-num_threads <threads>] " +
+                                 "[-props <config>] [-name <name>] [-use_fibers true|false]");
             return;
         }
 
 
         final ManyToOnePerfJGroups test=new ManyToOnePerfJGroups();
-        test.start(msg_size, num_threads, props, name);
+        test.start(msg_size, num_threads, props, name, use_fibers);
     }
 
 
