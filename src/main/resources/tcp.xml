@@ -19,7 +19,9 @@
             buffered_input_stream_size="65K"
             buffered_output_stream_size="65K"
             tcp_nodelay="false"
-            use_fibers="${use_fibers:true}"
+            use_fibers="${use_fibers:false}"
+            msg_processing_max_buffer_size="1000"
+            loopback_separate_thread="false"
     />
     <RED />
     <MPING mcast_addr="228.1.1.1"/>
