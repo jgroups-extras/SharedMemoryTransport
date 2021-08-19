@@ -117,7 +117,6 @@ public class ManyToOnePerfJGroups implements Receiver {
                 try {
                     // we can't use DONT_LOOPBACK: https://issues.redhat.com/browse/JGRP-1835
                     Message msg=new BytesMessage(null, buffer); // .setFlag(Message.TransientFlag.DONT_LOOPBACK);
-                    // Message msg=new BytesMessage(coord, buffer);
 
                     // if these 2 flags are used (=uncommented), then perf increases greatly!
                     // msg.setFlag(Message.Flag.NO_FC);
