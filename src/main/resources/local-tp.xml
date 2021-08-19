@@ -1,0 +1,46 @@
+
+<!--
+  Fast configuration for local mode, ie. all members reside on the same host. Setting ip_ttl to 0 means that
+  no multicast packet will make it outside the local host.
+  Therefore, this configuration will NOT work to cluster members residing on different hosts !
+
+  Author: Bela Ban
+-->
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="urn:org:jgroups"
+        xsi:schemaLocation="urn:org:jgroups http://www.jgroups.org/schema/jgroups.xsd"
+        >
+    <TCP
+            bind_addr="loopback"
+            bind_port="7800"
+            recv_buf_size="500K"
+            send_buf_size="500K"
+            buffered_input_stream_size="65K"
+            buffered_output_stream_size="65K"
+            tcp_nodelay="false"
+            use_fibers="${use_fibers:false}"
+            msg_processing_max_buffer_size="1000"
+            loopback_separate_thread="false"
+
+            local_transport.class="org.jgroups.protocols.shm.SharedMemoryLocalTransport"
+            local_transport.config="location=/tmp/shm;queue_capacity=8M"
+    />
+    <RED />
+    <MPING mcast_addr="228.1.1.1"/>
+    <MERGE3 max_interval="30000"
+            min_interval="10000"/>
+    <FD_SOCK2 port_range="5"/>
+    <FD_ALL3/>
+    <VERIFY_SUSPECT timeout="1500"  />
+    <pbcast.NAKACK2 xmit_interval="500"/>
+    <UNICAST3 xmit_interval="500"/>
+    <pbcast.STABLE desired_avg_gossip="50000"
+                   max_bytes="8m"/>
+    <pbcast.GMS print_local_addr="true" join_timeout="1000"/>
+    <UFC max_credits="2M"
+         min_threshold="0.4"/>
+    <MFC max_credits="2M"
+         min_threshold="0.4"/>
+    <FRAG2 frag_size="60K"  />
+</config>
