@@ -1,6 +1,5 @@
 package org.jgroups.protocols.shm;
 
-import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 import org.jgroups.Address;
 import org.jgroups.Event;
 import org.jgroups.PhysicalAddress;
@@ -11,6 +10,7 @@ import org.jgroups.annotations.ManagedOperation;
 import org.jgroups.annotations.Property;
 import org.jgroups.conf.AttributeType;
 import org.jgroups.protocols.TP;
+import org.jgroups.shm.ManyToOneBoundedChannel;
 import org.jgroups.shm.SharedMemoryBuffer;
 import org.jgroups.stack.IpAddress;
 import org.jgroups.util.*;
@@ -210,7 +210,7 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
                                               ThreadFactory thread_factory) throws IOException {
         String buffer_name=addressToFilename(addr, logical_name);
         return new SharedMemoryBuffer(buffer_name,
-                                      queue_capacity+ RingBufferDescriptor.TRAILER_LENGTH,
+                                      queue_capacity+ ManyToOneBoundedChannel.TRAILER_LENGTH,
                                       create, thread_factory);
     }
 

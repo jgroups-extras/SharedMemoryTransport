@@ -1,7 +1,7 @@
 package org.jgroups.shm.mpsc;
 
-import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 import org.jgroups.Global;
+import org.jgroups.shm.ManyToOneBoundedChannel;
 import org.jgroups.shm.SharedMemoryBuffer;
 import org.jgroups.util.SizeStreamable;
 import org.jgroups.util.Util;
@@ -16,7 +16,7 @@ import java.io.IOException;
  */
 public class SampleProducer2 {
     public static final String FILE_NAME = "/Users/bela/tmp/shm/broadcast2";
-    public static final int TOTAL_BUFFER_LENGTH=(2 << 15) + RingBufferDescriptor.TRAILER_LENGTH;
+    public static final int TOTAL_BUFFER_LENGTH=(2 << 15) + ManyToOneBoundedChannel.TRAILER_LENGTH;
 
     protected int                age=10;
     protected SharedMemoryBuffer buf;
