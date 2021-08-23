@@ -4,6 +4,7 @@ import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 import org.jgroups.Address;
 import org.jgroups.Event;
 import org.jgroups.PhysicalAddress;
+import org.jgroups.View;
 import org.jgroups.annotations.MBean;
 import org.jgroups.annotations.ManagedAttribute;
 import org.jgroups.annotations.ManagedOperation;
@@ -18,9 +19,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -143,14 +144,26 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
             case Event.DISCONNECT:
                 Util.close(buf);
                 break;
+
+            case Event.VIEW_CHANGE:
+                View v=evt.getArg();
+                Set<Address> keys=cache.keySet();
+                keys.retainAll(v.getMembers());
+                for(Address mbr: v.getMembersRaw()) {
+                    if(!keys.contains(mbr)) {
+                        try {
+                            getOrCreateBuffer(mbr);
+                        }
+                        catch(IOException e) {
+                            log.warn("failed creating shared buffer for %s: %s", mbr, e);
+                        }
+                    }
+                }
+                break;
         }
         return ret;
     }
 
-    @Override
-    public void sendMulticast(byte[] data, int offset, int length) throws Exception {
-        sendToMembers(null, data, offset, length);
-    }
 
     @Override
     public void sendUnicast(PhysicalAddress dest, byte[] data, int offset, int length) throws Exception {
@@ -174,7 +187,7 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
 
 
     @Override
-    protected void sendToSingleMember(Address dest, byte[] buf, int offset, int length) throws Exception {
+    protected void sendTo(Address dest, byte[] buf, int offset, int length) throws Exception {
         SharedMemoryBuffer shm_buf=getOrCreateBuffer(dest);
         if(shm_buf == null)
             throw new IllegalStateException(String.format("buffer for %s not found", dest));
@@ -183,13 +196,12 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
 
 
     @Override
-    protected void sendToMembers(Collection<Address> mbrs, byte[] buf, int offset, int length) throws Exception {
-        if(mbrs == null || mbrs.isEmpty())
-            mbrs=logical_addr_cache.keySet();
+    protected void sendToAll(byte[] buf, int offset, int length) throws Exception {
+        Set<Address> mbrs=cache.keySet();
         for(Address dest: mbrs) {
             if(Objects.equals(dest, local_addr))
                 continue;
-            sendToSingleMember(dest, buf, offset, length);
+            sendTo(dest, buf, offset, length);
         }
     }
 
