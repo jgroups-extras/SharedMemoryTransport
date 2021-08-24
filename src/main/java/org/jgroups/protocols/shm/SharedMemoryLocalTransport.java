@@ -1,6 +1,7 @@
 package org.jgroups.protocols.shm;
 
 import org.jgroups.Address;
+import org.jgroups.View;
 import org.jgroups.annotations.MBean;
 import org.jgroups.annotations.ManagedAttribute;
 import org.jgroups.annotations.ManagedOperation;
@@ -19,7 +20,9 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
@@ -45,6 +48,8 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
     protected SharedMemoryBuffer                    buf;
 
     protected LeakyByteBufferInputStream            cachedReceiveStream;
+
+    protected final Set<Address>                    members=new CopyOnWriteArraySet<>();
 
     protected final Map<Address,SharedMemoryBuffer> cache=new ConcurrentHashMap<>();
 
@@ -124,7 +129,12 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
         return this;
     }
 
-
+    public LocalTransport viewChange(View v) {
+        members.clear();
+        members.addAll(v.getMembers());
+        cache.keySet().retainAll(members);
+        return this;
+    }
 
     @Override
     public void accept(ByteBuffer bb) {
@@ -144,25 +154,33 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
 
     @Override
     public void sendTo(Address dest, byte[] buf, int offset, int length) throws Exception {
-        SharedMemoryBuffer shm_buf=getOrCreateBuffer(dest);
-        if(shm_buf == null)
-            throw new IllegalStateException(String.format("buffer for %s not found", dest));
-        shm_buf.write(buf, offset, length);
+        _sendTo(dest, buf, offset, length);
         num_unicasts.increment();
     }
 
 
     @Override
     public void sendToAll(byte[] buf, int offset, int length) throws Exception {
-        // todo: implement
-        for(Address dest: cache.keySet()) {
+        Set<Address>  mbrs=members;
+        if(mbrs == null || mbrs.isEmpty())
+            mbrs=tp.getLogicalAddressCache().keySet();
+
+        for(Address dest: members) {
             if(Objects.equals(dest, tp.localAddress()))
                 continue;
-            sendTo(dest, buf, offset, length);
+            if(tp.hasLocalMembers() && tp.isLocalMember(dest))
+                _sendTo(dest, buf, offset, length);
         }
         num_mcasts.increment();
     }
 
+
+    protected void _sendTo(Address dest, byte[] buf, int offset, int length) throws Exception {
+        SharedMemoryBuffer shm_buf=getOrCreateBuffer(dest);
+        if(shm_buf == null)
+            throw new IllegalStateException(String.format("buffer for %s not found", dest));
+        shm_buf.write(buf, offset, length);
+    }
 
 
     protected SharedMemoryBuffer createBuffer(Address addr, String logical_name, boolean create,
