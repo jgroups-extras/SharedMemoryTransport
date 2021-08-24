@@ -1,10 +1,10 @@
 package org.jgroups.shm.mpsc;
 
-import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 import org.jgroups.Address;
 import org.jgroups.Message;
 import org.jgroups.ObjectMessage;
 import org.jgroups.protocols.UnicastHeader3;
+import org.jgroups.shm.ManyToOneBoundedChannel;
 import org.jgroups.shm.SharedMemoryBuffer;
 import org.jgroups.util.ByteArrayDataOutputStream;
 import org.jgroups.util.Util;
@@ -15,7 +15,7 @@ import org.jgroups.util.Util;
  */
 public class SampleProducer3 {
     public static final String FILE_NAME = "/Users/bela/tmp/shm/broadcast3";
-    public static final int TOTAL_BUFFER_LENGTH=(2 << 15) + RingBufferDescriptor.TRAILER_LENGTH;
+    public static final int TOTAL_BUFFER_LENGTH=(2 << 15) + ManyToOneBoundedChannel.TRAILER_LENGTH;
 
     protected SharedMemoryBuffer buf;
 

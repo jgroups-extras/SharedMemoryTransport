@@ -1,6 +1,6 @@
 package org.jgroups.tests.perf;
 
-import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
+import org.jgroups.shm.ManyToOneBoundedChannel;
 import org.jgroups.shm.SharedMemoryBuffer;
 import org.jgroups.util.DefaultThreadFactory;
 import org.jgroups.util.ThreadFactory;
@@ -27,7 +27,7 @@ public class ManyToOnePerf implements Consumer<ByteBuffer> {
                          int queue_size, boolean use_fibers) throws IOException {
         ThreadFactory tf=new DefaultThreadFactory("runner", true, true)
           .useFibers(use_fibers);
-        buf=new SharedMemoryBuffer(shared_file, queue_size+ RingBufferDescriptor.TRAILER_LENGTH, !sender, tf);
+        buf=new SharedMemoryBuffer(shared_file, queue_size+ ManyToOneBoundedChannel.TRAILER_LENGTH, !sender, tf);
         if(sender)
             startSenders(msg_size, num_threads, use_fibers);
         else {

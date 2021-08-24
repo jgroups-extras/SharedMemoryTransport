@@ -1,6 +1,5 @@
 package org.jgroups.protocols.shm;
 
-import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 import org.jgroups.Address;
 import org.jgroups.annotations.MBean;
 import org.jgroups.annotations.ManagedAttribute;
@@ -9,6 +8,7 @@ import org.jgroups.annotations.Property;
 import org.jgroups.conf.AttributeType;
 import org.jgroups.protocols.LocalTransport;
 import org.jgroups.protocols.TP;
+import org.jgroups.shm.ManyToOneBoundedChannel;
 import org.jgroups.shm.SharedMemoryBuffer;
 import org.jgroups.util.*;
 
@@ -169,7 +169,7 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
                                               ThreadFactory thread_factory) throws IOException {
         String buffer_name=addressToFilename(addr, logical_name);
         return new SharedMemoryBuffer(buffer_name,
-                                      queue_capacity+ RingBufferDescriptor.TRAILER_LENGTH,
+                                      queue_capacity+ ManyToOneBoundedChannel.TRAILER_LENGTH,
                                       create, thread_factory);
     }
 
