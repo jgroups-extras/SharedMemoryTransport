@@ -16,7 +16,7 @@
             bind_port="7800"
             recv_buf_size="500K"
             send_buf_size="500K"
-            use_fibers="${use_fibers:true}"
+            use_fibers="${use_fibers:false}"
 
             max_send_buffers="100"
     />
