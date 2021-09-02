@@ -29,6 +29,9 @@ public class ManyToOneBurstBenchmark {
    @Param({"agrona", "jgroups"})
    private String ringBufferType;
 
+   @Param({"100", "1000"})
+   private int bytes;
+
    private final AtomicBoolean running = new AtomicBoolean(true);
    private final AtomicInteger producerId = new AtomicInteger();
    private ProducerState[] producerStates;
@@ -39,23 +42,29 @@ public class ManyToOneBurstBenchmark {
 
    @Setup
    public synchronized void setup(BenchmarkParams params) {
+      if (bytes < 4) {
+         throw new IllegalArgumentException("cannot configure less then 4 bytes per ring buffer entry");
+      }
+
       producerStates = new ProducerState[params.getThreads()];
 
       Runnable consumerTask;
 
+      final int bytes = this.bytes;
+
       switch (ringBufferType) {
          case "agrona":
-            final ManyToOneRingBuffer agronaRingBuffer = createAgronaRingBuffer(Integer.BYTES, burstLength, params.getThreads());
+            final ManyToOneRingBuffer agronaRingBuffer = createAgronaRingBuffer(bytes, burstLength, params.getThreads());
             consumerTask = createAgronaConsumer(agronaRingBuffer, producerStates, running, MESSAGE_COUNT_LIMIT);
             sendBurstOperation = burst -> {
-               sendAgronaBurst(agronaRingBuffer, burst);
+               sendAgronaBurst(agronaRingBuffer, bytes, burst);
             };
             break;
          case "jgroups":
-            final ManyToOneBoundedChannel jgroupsChannel = createJGroupsChannel(Integer.BYTES, burstLength, params.getThreads());
+            final ManyToOneBoundedChannel jgroupsChannel = createJGroupsChannel(bytes, burstLength, params.getThreads());
             consumerTask = createJGroupsConsumer(jgroupsChannel, producerStates, running, MESSAGE_COUNT_LIMIT);
             sendBurstOperation = burst -> {
-               sendJGroupsBurst(jgroupsChannel, burst);
+               sendJGroupsBurst(jgroupsChannel, bytes, burst);
             };
             break;
          default:
@@ -166,10 +175,10 @@ public class ManyToOneBurstBenchmark {
       }
    }
 
-   private static void sendAgronaBurst(ManyToOneRingBuffer ringBuffer, final int[] burst) {
+   private static void sendAgronaBurst(final ManyToOneRingBuffer ringBuffer, final int bytes, final int[] burst) {
       for (int value : burst) {
          int index;
-         while ((index = ringBuffer.tryClaim(1, Integer.BYTES)) <= 0) {
+         while ((index = ringBuffer.tryClaim(1, bytes)) <= 0) {
             Thread.onSpinWait();
          }
          ringBuffer.buffer().putInt(index, value);
@@ -177,10 +186,10 @@ public class ManyToOneBurstBenchmark {
       }
    }
 
-   private static void sendJGroupsBurst(ManyToOneBoundedChannel ringBuffer, final int[] burst) {
+   private static void sendJGroupsBurst(final ManyToOneBoundedChannel ringBuffer, final int bytes, final int[] burst) {
       for (int value : burst) {
          long claim;
-         while ((claim = ringBuffer.tryClaim(1, Integer.BYTES)) == ManyToOneBoundedChannel.INSUFFICIENT_CAPACITY) {
+         while ((claim = ringBuffer.tryClaim(1, bytes)) == ManyToOneBoundedChannel.INSUFFICIENT_CAPACITY) {
             Thread.onSpinWait();
          }
          ringBuffer.buffer().putInt(ManyToOneBoundedChannel.claimedIndex(claim), value);
