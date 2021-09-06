@@ -1,15 +1,9 @@
 package org.jgroups.shm;
 
-import org.agrona.BitUtil;
-import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer;
-import org.agrona.concurrent.ringbuffer.RecordDescriptor;
-import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.BenchmarkParams;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -54,14 +48,14 @@ public class ManyToOneBurstBenchmark {
 
       switch (ringBufferType) {
          case "agrona":
-            final ManyToOneRingBuffer agronaRingBuffer = createAgronaRingBuffer(bytes, burstLength, params.getThreads());
+            final ManyToOneRingBuffer agronaRingBuffer = AgronaRingBufferFactory.createManyToOneRingBuffer(bytes, burstLength * params.getThreads());
             consumerTask = createAgronaConsumer(agronaRingBuffer, producerStates, running, MESSAGE_COUNT_LIMIT);
             sendBurstOperation = burst -> {
                sendAgronaBurst(agronaRingBuffer, bytes, burst);
             };
             break;
          case "jgroups":
-            final ManyToOneBoundedChannel jgroupsChannel = createJGroupsChannel(bytes, burstLength, params.getThreads());
+            final ManyToOneBoundedChannel jgroupsChannel = JGroupsChannelFactory.createManyToOneBoundedChannel(bytes, burstLength * params.getThreads());
             consumerTask = createJGroupsConsumer(jgroupsChannel, producerStates, running, MESSAGE_COUNT_LIMIT);
             sendBurstOperation = burst -> {
                sendJGroupsBurst(jgroupsChannel, bytes, burst);
@@ -119,22 +113,6 @@ public class ManyToOneBurstBenchmark {
    public synchronized void tearDown() throws Exception {
       running.set(false);
       consumerThread.join();
-   }
-
-   private static ManyToOneRingBuffer createAgronaRingBuffer(int expectedEntrySize, int burstSize, int producers) {
-      final int entries = Math.max(8, burstSize);
-      final int entryCapacity = BitUtil.align(expectedEntrySize + RecordDescriptor.HEADER_LENGTH, RecordDescriptor.ALIGNMENT);
-      final int dataCapacity = BitUtil.findNextPositivePowerOfTwo(entryCapacity * entries * producers);
-      final int bufferCapacity = dataCapacity + RingBufferDescriptor.TRAILER_LENGTH;
-      return new ManyToOneRingBuffer(new UnsafeBuffer(ByteBuffer.allocateDirect(bufferCapacity)));
-   }
-
-   private static ManyToOneBoundedChannel createJGroupsChannel(int expectedEntrySize, int burstSize, int producers) {
-      final int entries = Math.max(8, burstSize);
-      final int entryCapacity = BitUtil.align(expectedEntrySize + ManyToOneBoundedChannel.RecordDescriptor.HEADER_LENGTH, ManyToOneBoundedChannel.RecordDescriptor.ALIGNMENT);
-      final int dataCapacity = BitUtil.findNextPositivePowerOfTwo(entryCapacity * entries * producers);
-      final int bufferCapacity = dataCapacity + ManyToOneBoundedChannel.TRAILER_LENGTH;
-      return new ManyToOneBoundedChannel(ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder()));
    }
 
    @State(Scope.Thread)
