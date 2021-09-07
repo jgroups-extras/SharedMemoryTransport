@@ -95,15 +95,6 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
         cache.values().forEach(SharedMemoryBuffer::resetStats);
     }
 
-    @Override
-    public void start() throws Exception {
-        super.start();
-    }
-
-    @Override
-    public void stop() {
-        super.stop();
-    }
 
     @Override
     public String getInfo() {
