@@ -14,7 +14,7 @@
     <shm.SHM
             bind_addr="loopback"
             location="/tmp/shm/"
-            queue_capacity="8M"
+            queue_capacity="16M"
             use_fibers="${use_fibers:false}"
     />
     <!--RED /-->
