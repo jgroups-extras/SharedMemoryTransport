@@ -165,7 +165,7 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
         if(mbrs == null || mbrs.isEmpty())
             mbrs=tp.getLogicalAddressCache().keySet();
 
-        for(Address dest: members) {
+        for(Address dest: mbrs) {
             if(Objects.equals(dest, tp.localAddress()))
                 continue;
             if(tp.hasLocalMembers() && tp.isLocalMember(dest))
