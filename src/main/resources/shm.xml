@@ -16,7 +16,7 @@
             location="/tmp/shm/"
             queue_capacity="16M"
             use_fibers="${use_fibers:true}"
-            max_sleep="1"
+            loopback_separate_thread="false"
     />
     <!--RED /-->
     <PING />
