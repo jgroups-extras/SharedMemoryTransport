@@ -16,15 +16,12 @@
             bind_port="7800"
             recv_buf_size="500K"
             send_buf_size="500K"
-            buffered_input_stream_size="65K"
-            buffered_output_stream_size="65K"
             tcp_nodelay="false"
             use_fibers="${use_fibers:false}"
-            msg_processing_max_buffer_size="1000"
             loopback_separate_thread="false"
 
             local_transport.class="org.jgroups.protocols.shm.SharedMemoryLocalTransport"
-            local_transport.config="location=/tmp/shm;queue_capacity=8M"
+            local_transport.config="location=/tmp/shm;queue_capacity=16M"
     />
     <RED />
     <MPING mcast_addr="228.1.1.1"/>
