@@ -17,7 +17,7 @@
             recv_buf_size="500K"
             send_buf_size="500K"
             tcp_nodelay="false"
-            use_fibers="${use_fibers:false}"
+            use_fibers="${use_fibers:true}"
             loopback_separate_thread="false"
 
             local_transport.class="org.jgroups.protocols.shm.SharedMemoryLocalTransport"
