@@ -256,6 +256,23 @@ public class ManyToOneBoundedChannel {
       MSG_STATE_UPDATER.setRelease(buffer, lengthOffset, recordLength);
    }
 
+   public void abort(final long claim) {
+      // unpack index and recordLength
+      final int index = claimedIndex(claim);
+      if (index < 0) {
+         throw new IllegalArgumentException("invalid claim result");
+      }
+      final int recordIndex = computeRecordIndex(index);
+      final int lengthOffset = lengthOffset(recordIndex);
+      final int recordLength = recordLength(claim);
+      if (recordLength < 0) {
+         throw new IllegalArgumentException("invalid claim result");
+      }
+      // go back to the record header and replace any existing entry type
+      buffer.putInt(typeOffset(recordIndex), PADDING_MSG_TYPE_ID);
+      MSG_STATE_UPDATER.setRelease(buffer, lengthOffset, recordLength);
+   }
+
    public int read(final MessageHandler handler) {
       return read(handler, Integer.MAX_VALUE);
    }
