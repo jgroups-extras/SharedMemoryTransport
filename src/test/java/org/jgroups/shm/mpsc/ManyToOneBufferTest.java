@@ -62,7 +62,7 @@ public class ManyToOneBufferTest {
             e.printStackTrace();
          }
       });
-      assert num_msgs == 2;
+      Assert.assertEquals(num_msgs, 2);
    }
 
    @Test(dataProvider = "testConfiguration")
@@ -100,5 +100,40 @@ public class ManyToOneBufferTest {
 
       Assert.assertEquals(num_msgs, 2);
       Assert.assertEquals(rb.size(), 0);
+   }
+
+   @Test(dataProvider = "testConfiguration")
+   public void testAbort(boolean direct) throws IOException {
+      ByteBuffer buf = (direct ? ByteBuffer.allocateDirect(1024 + ManyToOneBoundedChannel.TRAILER_LENGTH) : ByteBuffer.allocate(1024 + ManyToOneBoundedChannel.TRAILER_LENGTH)).order(ByteOrder.nativeOrder());
+      ManyToOneBoundedChannel rb = new ManyToOneBoundedChannel(buf);
+      byte[] buf1 = Util.objectToByteBuffer("hello world");
+      byte[] buf2 = Util.objectToByteBuffer("from Bela Ban");
+
+      long claim1 = rb.tryClaim(1, buf1.length), claim2 = rb.tryClaim(1, buf2.length);
+      Assert.assertTrue(claim1 != ManyToOneBoundedChannel.INSUFFICIENT_CAPACITY);
+      Assert.assertTrue(claim2 != ManyToOneBoundedChannel.INSUFFICIENT_CAPACITY);
+      {
+         rb.abort(claim1);
+      }
+      {
+         final int index = claimedIndex(claim2);
+         final int prePosition = rb.buffer().position();
+         copyBytes(buf2, 0, rb.buffer(), index, buf2.length);
+         rb.commit(claim2);
+         Assert.assertEquals(prePosition, rb.buffer().position());
+      }
+      int num_msgs = rb.read((msgTypeId, buffer, offset, length) -> {
+         ByteBuffer b = buffer.position(offset);
+         byte[] tmp = new byte[length];
+         b.get(tmp, 0, tmp.length);
+         String s = null;
+         try {
+            s = Util.objectFromByteBuffer(tmp);
+            System.out.println("s = " + s);
+         } catch (Exception e) {
+            e.printStackTrace();
+         }
+      });
+      Assert.assertEquals(num_msgs, 1);
    }
 }
