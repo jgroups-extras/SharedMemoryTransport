@@ -27,7 +27,7 @@ public class SampleConsumer2 implements Consumer<ByteBuffer> {
     }
 
     protected void start() throws IOException {
-        buf=new SharedMemoryBuffer(SampleProducer2.FILE_NAME, SampleProducer2.TOTAL_BUFFER_LENGTH, true, null)
+        buf=new SharedMemoryBuffer(SampleProducer2.FILE_NAME, SampleProducer2.TOTAL_BUFFER_LENGTH, true, null, false)
           .setConsumer(this);
     }
 

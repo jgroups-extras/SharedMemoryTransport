@@ -27,7 +27,7 @@ public class ManyToOnePerf implements Consumer<ByteBuffer> {
                          int queue_size, boolean use_fibers) throws IOException {
         ThreadFactory tf=new DefaultThreadFactory("runner", true, true)
           .useFibers(use_fibers);
-        buf=new SharedMemoryBuffer(shared_file, queue_size+ ManyToOneBoundedChannel.TRAILER_LENGTH, !sender, tf);
+        buf=new SharedMemoryBuffer(shared_file, queue_size+ ManyToOneBoundedChannel.TRAILER_LENGTH, !sender, tf, false);
         if(sender)
             startSenders(msg_size, num_threads, use_fibers);
         else {

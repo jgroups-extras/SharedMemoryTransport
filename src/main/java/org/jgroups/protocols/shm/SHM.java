@@ -1,9 +1,6 @@
 package org.jgroups.protocols.shm;
 
-import org.jgroups.Address;
-import org.jgroups.Event;
-import org.jgroups.PhysicalAddress;
-import org.jgroups.View;
+import org.jgroups.*;
 import org.jgroups.annotations.MBean;
 import org.jgroups.annotations.ManagedAttribute;
 import org.jgroups.annotations.ManagedOperation;
@@ -19,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -33,17 +31,6 @@ import java.util.function.Consumer;
 @MBean(description="Transport which exchanges messages by adding them to shared memory. This works only when all " +
   "members are processes on the same host")
 public class SHM extends TP implements Consumer<ByteBuffer> {
-
-    protected static final class LeakyByteBufferInputStream extends ByteBufferInputStream {
-
-        public LeakyByteBufferInputStream(ByteBuffer buf) {
-            super(buf);
-        }
-
-        private ByteBuffer buf() {
-            return buf;
-        }
-    }
 
     @Property(description="Folder under which the memory-mapped files for the queues are created.")
     protected String                                location="/tmp/shm";
@@ -196,14 +183,56 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
         }
     }
 
+    @Override
+    public void sendTo(Address dest, Message msg) throws Exception {
+        SharedMemoryBuffer shm_buf=getOrCreateBuffer(dest);
+        if(shm_buf == null)
+            throw new IllegalStateException(String.format("buffer for %s not found", msg.dest()));
+        int length=Util.size(msg);
+        shm_buf.write(msg, length);
+    }
+
+    @Override
+    public void sendToAll(Message msg) throws Exception {
+        Set<Address> mbrs=cache.keySet();
+        for(Address dest: mbrs) {
+            if(Objects.equals(dest, local_addr))
+                continue;
+            sendTo(dest, msg);
+        }
+    }
+
+    @Override
+    public void sendTo(Address dest, Address src, List<Message> msgs) throws Exception {
+        int serialized_size=Util.sizeMessageList(dest, src, cluster_name != null? cluster_name.chars() : null, msgs, getId());
+        sendTo(dest, src, msgs, serialized_size, false);
+    }
+
+    @Override
+    public void sendToAll(Address src, List<Message> msgs) throws Exception {
+        Set<Address> mbrs=cache.keySet();
+        int size=Util.sizeMessageList(null, src, cluster_name != null? cluster_name.chars() : null, msgs, getId());
+        for(Address dest: mbrs) {
+            if(Objects.equals(dest, local_addr))
+                continue;
+            sendTo(dest, src, msgs, size, true);
+        }
+    }
+
+    protected void sendTo(Address dest, Address src, List<Message> msgs, int serialized_size, boolean multicast) throws Exception {
+        SharedMemoryBuffer shm_buf=getOrCreateBuffer(dest);
+        if(shm_buf == null)
+            throw new IllegalStateException(String.format("buffer for %s not found", dest));
+        shm_buf.write(dest, src, msgs, serialized_size, cluster_name.chars(), getId(), multicast);
+    }
 
     protected SharedMemoryBuffer createBuffer(Address addr, String logical_name, boolean create,
                                               ThreadFactory thread_factory) throws IOException {
         String buffer_name=addressToFilename(addr, logical_name);
-        return new SharedMemoryBuffer(buffer_name,
-                                      queue_capacity+ ManyToOneBoundedChannel.TRAILER_LENGTH,
-                                      create, thread_factory);
+        return new SharedMemoryBuffer(buffer_name,queue_capacity+ ManyToOneBoundedChannel.TRAILER_LENGTH,
+                                      create, thread_factory, late_marshalling);
     }
+
 
     protected String addressToFilename(Address addr, String logical_name) {
         String cluster=cluster_name != null? cluster_name.toString() : null;
@@ -250,6 +279,18 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
             if(!cache.containsKey(uuid))
                 cache.putIfAbsent(uuid, createBuffer(uuid, logical_name, false, thread_factory));
             addPhysicalAddressToCache(uuid, PHYSICAL_ADDRESS);
+        }
+    }
+
+
+    protected static final class LeakyByteBufferInputStream extends ByteBufferInputStream {
+
+        public LeakyByteBufferInputStream(ByteBuffer buf) {
+            super(buf);
+        }
+
+        private ByteBuffer buf() {
+            return buf;
         }
     }
 

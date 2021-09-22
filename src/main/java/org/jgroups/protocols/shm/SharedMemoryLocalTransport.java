@@ -188,7 +188,7 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
         String buffer_name=addressToFilename(addr, logical_name);
         return new SharedMemoryBuffer(buffer_name,
                                       queue_capacity+ ManyToOneBoundedChannel.TRAILER_LENGTH,
-                                      create, thread_factory);
+                                      create, thread_factory, tp.lateMarshalling());
     }
 
     protected String addressToFilename(Address addr, String logical_name) {
