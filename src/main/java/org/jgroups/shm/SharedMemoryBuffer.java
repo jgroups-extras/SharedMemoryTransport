@@ -141,7 +141,8 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
             // Francesco Nigro: zero the buffer so all pages are in memory
             ByteBufferUtils.zeros(bb, 0, buffer_length);
             rb=new ManyToOneBoundedChannel(bb);
-            readBuffer=bb.asReadOnlyBuffer();
+            // readBuffer=bb.asReadOnlyBuffer();
+            readBuffer=bb.asReadOnlyBuffer().order(bb.order());
         }
         catch(IOException ex) {
             close();
