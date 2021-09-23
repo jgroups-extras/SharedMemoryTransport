@@ -208,9 +208,6 @@ public class ManyToOneBoundedChannel {
          throw new IllegalArgumentException("buffer cannot be read-only");
       }
       this.buffer = buffer;
-      if (buffer.order() != ByteOrder.nativeOrder()) {
-         throw new IllegalArgumentException("buffer must use " + ByteOrder.nativeOrder());
-      }
       checkCapacity(buffer.capacity());
       capacity = buffer.capacity() - TRAILER_LENGTH;
       // this is going to ensure that VarHandle bytebuffer views works ok for both int/long-aligned accesses
@@ -238,7 +235,7 @@ public class ManyToOneBoundedChannel {
       if (recordIndex < 0) {
          return INSUFFICIENT_CAPACITY;
       }
-      buffer.putInt(typeOffset(recordIndex), msgTypeId);
+      MSG_STATE_UPDATER.setOpaque(buffer, typeOffset(recordIndex), msgTypeId);
       return tryClaimResult(encodedMsgOffset(recordIndex), recordLength);
    }
 
@@ -269,7 +266,7 @@ public class ManyToOneBoundedChannel {
          throw new IllegalArgumentException("invalid claim result");
       }
       // go back to the record header and replace any existing entry type
-      buffer.putInt(typeOffset(recordIndex), PADDING_MSG_TYPE_ID);
+      MSG_STATE_UPDATER.setOpaque(buffer, typeOffset(recordIndex), PADDING_MSG_TYPE_ID);
       MSG_STATE_UPDATER.setRelease(buffer, lengthOffset, recordLength);
    }
 
@@ -282,7 +279,7 @@ public class ManyToOneBoundedChannel {
 
       final ByteBuffer buffer = this.buffer;
       final int headPositionIndex = this.headPositionIndex;
-      final long head = buffer.getLong(headPositionIndex);
+      final long head = (long) SEQUENCES_UPDATER.getOpaque(buffer, headPositionIndex);
 
       final int capacity = this.capacity;
       final int headIndex = (int) head & (capacity - 1);
@@ -299,7 +296,7 @@ public class ManyToOneBoundedChannel {
 
             bytesRead += align(recordLength, ALIGNMENT);
 
-            final int messageTypeId = buffer.getInt(typeOffset(recordIndex));
+            final int messageTypeId = (int) MSG_STATE_UPDATER.getOpaque(buffer, typeOffset(recordIndex));
             if (PADDING_MSG_TYPE_ID == messageTypeId) {
                continue;
             }
@@ -411,7 +408,7 @@ public class ManyToOneBoundedChannel {
       } while (!SEQUENCES_UPDATER.compareAndSet(buffer, tailPositionIndex, tail, tail + requiredCapacity + padding));
 
       if (0 != padding) {
-         buffer.putInt(typeOffset(tailIndex), PADDING_MSG_TYPE_ID);
+         MSG_STATE_UPDATER.setOpaque(buffer, typeOffset(tailIndex), PADDING_MSG_TYPE_ID);
          MSG_STATE_UPDATER.setRelease(buffer, lengthOffset(tailIndex), padding);
          tailIndex = 0;
       }
