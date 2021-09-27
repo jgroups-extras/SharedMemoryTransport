@@ -46,10 +46,10 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
     public SharedMemoryBuffer(String file_name, int buffer_length, boolean create, ThreadFactory f) throws IOException {
         this.file_name=file_name;
         // idle stragegy spins, the yields, then parks between 1000ns and 64ms by default
-        idle_strategy=IdleStrategy.backoffIdle(IdleStrategy.DEFAULT_MAX_SPINS,
-                                              IdleStrategy.DEFAULT_MAX_YIELDS,
-                                              IdleStrategy.DEFAULT_MIN_PARK_PERIOD_NS,
-                                              IdleStrategy.DEFAULT_MAX_PARK_PERIOD_NS<<6);
+        IdleStrategy.backoffIdle(IdleStrategy.DEFAULT_MAX_SPINS,
+                                 IdleStrategy.DEFAULT_MAX_YIELDS,
+                                 IdleStrategy.DEFAULT_MIN_PARK_PERIOD_NS,
+                                 IdleStrategy.DEFAULT_MAX_PARK_PERIOD_NS<<6);
         init(buffer_length, create);
         ThreadFactory tf=f != null? f : new DefaultThreadFactory("runner", true, true);
         runner=new Runner(tf, String.format("shm-%s", file_name), this::doWork, null);
@@ -90,7 +90,11 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
         }
         try {
             copyBytes(buf, offset, rb.buffer(), claimedIndex(claim), length);
-        } finally {
+        }
+        catch(Exception ex) {
+            rb.abort(claim);
+        }
+        finally {
             rb.commit(claim);
         }
         return true;
@@ -110,8 +114,7 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
         if(msg_type != 1)
             return;
         final ByteBuffer readbuf = this.readBuffer;
-        readbuf.position(offset);
-        readbuf.limit(offset + length);
+        readbuf.position(offset).limit(offset + length);
         try {
             consumer.accept(readbuf);
         } finally {
@@ -137,12 +140,13 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
 
             channel=FileChannel.open(Paths.get(file_name), options);
             ByteBuffer bb=channel.map(FileChannel.MapMode.READ_WRITE, 0, buffer_length)
-               .order(ByteOrder.nativeOrder());
+               .order(ByteOrder.BIG_ENDIAN);
             // Francesco Nigro: zero the buffer so all pages are in memory
             ByteBufferUtils.zeros(bb, 0, buffer_length);
             rb=new ManyToOneBoundedChannel(bb);
             // readBuffer=bb.asReadOnlyBuffer();
-            readBuffer=bb.asReadOnlyBuffer().order(bb.order());
+            // eager marshalling of JGroups always uses BIG_ENDIAN
+            readBuffer=bb.asReadOnlyBuffer().order(ByteOrder.BIG_ENDIAN); // default, not really needed...
         }
         catch(IOException ex) {
             close();

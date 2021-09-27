@@ -47,7 +47,7 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
 
     protected SharedMemoryBuffer                    buf;
 
-    protected LeakyByteBufferInputStream            cachedReceiveStream;
+    protected ByteBufferInputStream                 cachedReceiveStream;
 
     protected final Set<Address>                    members=new CopyOnWriteArraySet<>();
 
@@ -139,9 +139,9 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
     @Override
     public void accept(ByteBuffer bb) {
         try {
-            LeakyByteBufferInputStream receiveStream = this.cachedReceiveStream;
+            ByteBufferInputStream receiveStream = this.cachedReceiveStream;
             if (receiveStream == null || receiveStream.buf() != bb) {
-                receiveStream =new LeakyByteBufferInputStream(bb);
+                receiveStream =new ByteBufferInputStream(bb);
                 this.cachedReceiveStream=null;
             }
             tp.receive(null, receiveStream);
@@ -264,10 +264,5 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
         }
     }
 
-
-    protected static final class LeakyByteBufferInputStream extends ByteBufferInputStream {
-        public LeakyByteBufferInputStream(ByteBuffer buf) {super(buf);}
-        private ByteBuffer buf() {return buf;}
-    }
 
 }

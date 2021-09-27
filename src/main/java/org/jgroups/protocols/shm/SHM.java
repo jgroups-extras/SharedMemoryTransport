@@ -34,17 +34,6 @@ import java.util.function.Consumer;
   "members are processes on the same host")
 public class SHM extends TP implements Consumer<ByteBuffer> {
 
-    protected static final class LeakyByteBufferInputStream extends ByteBufferInputStream {
-
-        public LeakyByteBufferInputStream(ByteBuffer buf) {
-            super(buf);
-        }
-
-        private ByteBuffer buf() {
-            return buf;
-        }
-    }
-
     @Property(description="Folder under which the memory-mapped files for the queues are created.")
     protected String                                location="/tmp/shm";
 
@@ -57,7 +46,7 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
 
     protected SharedMemoryBuffer                    buf;
 
-    protected LeakyByteBufferInputStream            cachedReceiveStream;
+    protected ByteBufferInputStream                 cachedReceiveStream;
 
     protected final Map<Address,SharedMemoryBuffer> cache=new ConcurrentHashMap<>();
 
@@ -164,9 +153,9 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
     @Override
     public void accept(ByteBuffer bb) {
         try {
-            LeakyByteBufferInputStream receiveStream = this.cachedReceiveStream;
+            ByteBufferInputStream receiveStream = this.cachedReceiveStream;
             if (receiveStream == null || receiveStream.buf() != bb) {
-                receiveStream =new LeakyByteBufferInputStream(bb);
+                receiveStream =new ByteBufferInputStream(bb);
                 this.cachedReceiveStream = null;
             }
             receive(null, receiveStream);
