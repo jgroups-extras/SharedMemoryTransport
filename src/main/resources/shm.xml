@@ -17,6 +17,7 @@
             queue_capacity="16M"
             use_fibers="${use_fibers:true}"
             loopback_separate_thread="false"
+            max_sleep="1"
     />
     <!--RED /-->
     <PING />
