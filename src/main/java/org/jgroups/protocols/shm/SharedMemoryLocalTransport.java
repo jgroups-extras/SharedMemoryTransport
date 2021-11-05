@@ -1,6 +1,7 @@
 package org.jgroups.protocols.shm;
 
 import org.jgroups.Address;
+import org.jgroups.PhysicalAddress;
 import org.jgroups.View;
 import org.jgroups.annotations.MBean;
 import org.jgroups.annotations.ManagedAttribute;
@@ -11,20 +12,23 @@ import org.jgroups.protocols.LocalTransport;
 import org.jgroups.protocols.TP;
 import org.jgroups.shm.ManyToOneBoundedChannel;
 import org.jgroups.shm.SharedMemoryBuffer;
+import org.jgroups.stack.IpAddress;
+import org.jgroups.util.UUID;
 import org.jgroups.util.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of {@link org.jgroups.protocols.LocalTransport} based on shared memory
@@ -49,7 +53,12 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
 
     protected ByteBufferInputStream                 cachedReceiveStream;
 
+    @ManagedAttribute(description="List of _all_ members of the current view")
     protected final Set<Address>                    members=new CopyOnWriteArraySet<>();
+
+    protected Collection<InetAddress>               local_addresses;
+    @ManagedAttribute(description="List of members with local addresses (same-host members) of the current view")
+    protected final List<Address>                   local_members=new ArrayList<>();
 
     protected final Map<Address,SharedMemoryBuffer> cache=new ConcurrentHashMap<>();
 
@@ -71,6 +80,9 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
     @ManagedAttribute(description="Number of multicasts sent via this transport",type=AttributeType.SCALAR)
     public long localMulticasts() {return num_mcasts.sum();}
 
+    @ManagedOperation(description="Print the local addresses of this host")
+    public String getLocalAddresses() {return local_addresses != null? local_addresses.toString() : "null";}
+
     @ManagedOperation(description="Changes max_sleep")
     public void maxSleep(long ms) {
         this.max_sleep=ms;
@@ -78,20 +90,8 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
             buf.maxSleep(ms);
     }
 
-
-    @Override
-    public LocalTransport init(TP transport, String config) {
-        this.tp=Objects.requireNonNull(transport);
-        parse(config); // sets attributes
-        int cap=Util.getNextHigherPowerOfTwo(queue_capacity);
-        if(queue_capacity != cap) {
-            tp.getLog().warn("queue_capacity (%d) must be a power of 2, changing it to %d", queue_capacity, cap);
-            queue_capacity=cap;
-        }
-        File f=new File(location);
-        if(!f.exists())
-            throw new IllegalArgumentException(String.format("location %s does not exist", location));
-        return this;
+    public boolean isLocalMember(Address a) {
+        return local_members != null && local_members.contains(a);
     }
 
     @Override
@@ -103,8 +103,31 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
     }
 
 
+
+    @Override
+    public LocalTransport init(TP transport) {
+        this.tp=Objects.requireNonNull(transport);
+
+        Collection<InetAddress> addrs=Util.getAllAvailableAddresses(null);
+        local_addresses=new ArrayList<>(addrs.size());
+        // add IPv4 addresses at the head, IPv6 address at the end
+        local_addresses.addAll(addrs.stream().filter(a -> a instanceof Inet4Address).collect(Collectors.toList()));
+        local_addresses.addAll(addrs.stream().filter(a -> a instanceof Inet6Address).collect(Collectors.toList()));
+        return this;
+    }
+
+
     @Override
     public LocalTransport start() throws Exception {
+        int cap=Util.getNextHigherPowerOfTwo(queue_capacity);
+        if(queue_capacity != cap) {
+            tp.getLog().warn("queue_capacity (%d) must be a power of 2, changing it to %d", queue_capacity, cap);
+            queue_capacity=cap;
+        }
+        File f=new File(location);
+        if(!f.exists())
+            throw new IllegalArgumentException(String.format("location %s does not exist", location));
+
         try {
             buf=createBuffer(tp.localAddress(), null, true, tp.getThreadFactory())
               .setConsumer(this).deleteFileOnExit(true);
@@ -133,6 +156,16 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
         members.clear();
         members.addAll(v.getMembers());
         cache.keySet().retainAll(members);
+        local_members.clear();
+        for(Address mbr: members) {
+            PhysicalAddress pa=tp.getPhysicalAddressFromCache(mbr);
+            if(pa == null || Objects.equals(pa, tp.localPhysicalAddress()))
+                continue;
+            InetAddress addr=pa instanceof IpAddress? ((IpAddress)pa).getIpAddress() : null;
+            if(addr != null && local_addresses.contains(addr))
+                if(!local_members.contains(mbr))
+                    local_members.add(mbr);
+        }
         return this;
     }
 
@@ -168,7 +201,7 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
         for(Address dest: mbrs) {
             if(Objects.equals(dest, tp.localAddress()))
                 continue;
-            if(tp.hasLocalMembers() && tp.isLocalMember(dest))
+            if(isLocalMember(dest)) // takes null values into account
                 _sendTo(dest, buf, offset, length);
         }
         num_mcasts.increment();
