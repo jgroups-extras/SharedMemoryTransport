@@ -20,8 +20,9 @@
             use_fibers="${use_fibers:true}"
             loopback_separate_thread="false"
 
-            local_transport.class="org.jgroups.protocols.shm.SharedMemoryLocalTransport"
-            local_transport.config="location=/tmp/shm;queue_capacity=16M"
+            local_transport_class="org.jgroups.protocols.shm.SharedMemoryLocalTransport"
+            local_transport.location="/tmp/shm"
+            local_transport.queue_capacity="16M"
     />
     <RED />
     <MPING mcast_addr="228.1.1.1"/>
