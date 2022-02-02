@@ -129,11 +129,11 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
             throw new IllegalArgumentException(String.format("location %s does not exist", location));
 
         try {
-            buf=createBuffer(tp.localAddress(), null, true, tp.getThreadFactory())
+            buf=createBuffer(tp.getAddress(), null, true, tp.getThreadFactory())
               .setConsumer(this).deleteFileOnExit(true);
             if(max_sleep > 0)
                 buf.maxSleep(max_sleep);
-            cache.putIfAbsent(tp.localAddress(), buf);
+            cache.putIfAbsent(tp.getAddress(), buf);
             initCache();
         }
         catch(IOException ex) {
@@ -199,7 +199,7 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
             mbrs=tp.getLogicalAddressCache().keySet();
 
         for(Address dest: mbrs) {
-            if(Objects.equals(dest, tp.localAddress()))
+            if(Objects.equals(dest, tp.getAddress()))
                 continue;
             if(isLocalMember(dest)) // takes null values into account
                 _sendTo(dest, buf, offset, length);

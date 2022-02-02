@@ -28,7 +28,7 @@ public class ManyToOnePerfJGroups implements Receiver {
         ch=new JChannel(props).setName(name).setReceiver(this);
         if(use_fibers && Util.fibersAvailable()) {
             TP transport=ch.getProtocolStack().getTransport();
-            transport.useFibers(true);
+            transport.useVirtualThreads(true);
             System.out.println("-- using fibers instead of threads");
         }
         ch.connect("many-to-one-perf");
