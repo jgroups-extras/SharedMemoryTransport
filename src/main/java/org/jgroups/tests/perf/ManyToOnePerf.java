@@ -24,12 +24,12 @@ public class ManyToOnePerf implements Consumer<ByteBuffer> {
     protected static final long  STATS_INTERVAL=6_000; // interval (ms) at which we print stats
 
     protected void start(int msg_size, int num_threads, boolean sender, String shared_file,
-                         int queue_size, boolean use_fibers) throws IOException {
+                         int queue_size, boolean use_vthreads) throws IOException {
         ThreadFactory tf=new DefaultThreadFactory("runner", true, true)
-          .useFibers(use_fibers);
+          .useVThreads(use_vthreads);
         buf=new SharedMemoryBuffer(shared_file, queue_size+ ManyToOneBoundedChannel.TRAILER_LENGTH, !sender, tf);
         if(sender)
-            startSenders(msg_size, num_threads, use_fibers);
+            startSenders(msg_size, num_threads, use_vthreads);
         else {
             buf.deleteFileOnExit(true);
             startReceiver(msg_size);
@@ -52,10 +52,10 @@ public class ManyToOnePerf implements Consumer<ByteBuffer> {
         }
     }
 
-    public void startSenders(int msg_size, int num_threads, boolean use_fibers) {
+    public void startSenders(int msg_size, int num_threads, boolean use_vthreads) {
         LongAdder sent_msgs=new LongAdder();
         ThreadFactory thread_factory=new DefaultThreadFactory("sender", true, true)
-          .useFibers(use_fibers);
+          .useVThreads(use_vthreads);
         for(int i=0; i < num_threads; i++) {
             Thread sender=thread_factory.newThread(new Sender(msg_size, sent_msgs), "sender-" + i);
             sender.start();
@@ -109,7 +109,7 @@ public class ManyToOnePerf implements Consumer<ByteBuffer> {
 
     public static void main(String[] args) throws IOException {
         int msg_size=1000, num_threads=100, queue_size=2 << 22;
-        boolean sender=false, use_fibers=true;
+        boolean sender=false, use_vthreads=true;
         String shared_file="/tmp/shm/perftest";
 
         for(int i=0; i < args.length; i++) {
@@ -133,12 +133,12 @@ public class ManyToOnePerf implements Consumer<ByteBuffer> {
                 queue_size=Integer.parseInt(args[++i]);
                 continue;
             }
-            if("-use_fibers".equals(args[i])) {
-                use_fibers=Boolean.parseBoolean(args[++i]);
+            if("-use_vthreads".equals(args[i])) {
+                use_vthreads=Boolean.parseBoolean(args[++i]);
                 continue;
             }
             System.out.println("ManyToOnePerf [-msg_size <bytes>] [-num_threads <threads>] " +
-                                 "[-sender true|false] [-file <shared file>] [-queue_size <bytes>] [-use_fibers true|false]");
+                                 "[-sender true|false] [-file <shared file>] [-queue_size <bytes>] [-use_vthreads true|false]");
             return;
         }
 
@@ -149,7 +149,7 @@ public class ManyToOnePerf implements Consumer<ByteBuffer> {
         }
 
         final ManyToOnePerf test=new ManyToOnePerf();
-        test.start(msg_size, num_threads, sender, shared_file, queue_size, use_fibers);
+        test.start(msg_size, num_threads, sender, shared_file, queue_size, use_vthreads);
     }
 
 

@@ -1,6 +1,5 @@
 package org.jgroups.shm.mpsc;
 
-import org.jgroups.DefaultMessageFactory;
 import org.jgroups.Message;
 import org.jgroups.MessageFactory;
 import org.jgroups.Version;
@@ -17,7 +16,6 @@ import java.util.function.Consumer;
  */
 public class SampleConsumer3 implements Consumer<ByteBuffer> {
     protected SharedMemoryBuffer   buf;
-    protected final MessageFactory msg_factory=new DefaultMessageFactory();
 
     @Override
     public void accept(ByteBuffer bb) {
@@ -33,11 +31,12 @@ public class SampleConsumer3 implements Consumer<ByteBuffer> {
 
             byte flags=in.readByte();
             short type=in.readShort();
-            Message msg=msg_factory.create(type); // don't create headers, readFrom() will do this
+            Message msg=MessageFactory.create(type); // don't create headers, readFrom() will do this
             msg.readFrom(in);
             System.out.printf("msg: %s\n", msg);
         }
         catch(Exception e) {
+            //noinspection CallToPrintStackTrace
             e.printStackTrace();
         }
     }

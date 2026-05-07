@@ -22,11 +22,11 @@ public class ManyToOnePerfJGroups implements Receiver {
     protected ThreadFactory      thread_factory;
     protected static final long  STATS_INTERVAL=2_000; // interval (ms) at which we print stats
 
-    protected void start(int msg_size, int num_threads, String props, String name, boolean use_fibers) throws Exception {
+    protected void start(int msg_size, int num_threads, String props, String name, boolean use_vthreads) throws Exception {
         thread_factory=new DefaultThreadFactory("invoker", false, true)
-          .useFibers(use_fibers);
+          .useVThreads(use_vthreads);
         ch=new JChannel(props).setName(name).setReceiver(this);
-        if(use_fibers && Util.fibersAvailable()) {
+        if(use_vthreads && Util.virtualThreadsAvailable()) {
             TP transport=ch.getProtocolStack().getTransport();
             transport.useVirtualThreads(true);
             System.out.println("-- using fibers instead of threads");
