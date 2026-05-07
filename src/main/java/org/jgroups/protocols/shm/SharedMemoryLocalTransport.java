@@ -13,8 +13,8 @@ import org.jgroups.protocols.TP;
 import org.jgroups.shm.ManyToOneBoundedChannel;
 import org.jgroups.shm.SharedMemoryBuffer;
 import org.jgroups.stack.IpAddress;
-import org.jgroups.util.UUID;
 import org.jgroups.util.*;
+import org.jgroups.util.UUID;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,7 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 /**
  * Implementation of {@link org.jgroups.protocols.LocalTransport} based on shared memory
@@ -111,8 +110,8 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
         Collection<InetAddress> addrs=Util.getAllAvailableAddresses(null);
         local_addresses=new ArrayList<>(addrs.size());
         // add IPv4 addresses at the head, IPv6 address at the end
-        local_addresses.addAll(addrs.stream().filter(a -> a instanceof Inet4Address).collect(Collectors.toList()));
-        local_addresses.addAll(addrs.stream().filter(a -> a instanceof Inet6Address).collect(Collectors.toList()));
+        local_addresses.addAll(addrs.stream().filter(a -> a instanceof Inet4Address).toList());
+        local_addresses.addAll(addrs.stream().filter(a -> a instanceof Inet6Address).toList());
         return this;
     }
 
@@ -177,7 +176,7 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
                 receiveStream =new ByteBufferInputStream(bb);
                 this.cachedReceiveStream=null;
             }
-            tp.receive(null, receiveStream);
+            tp.receive(null, receiveStream, 0);
         }
         catch(Exception ex) {
             tp.getLog().error("failed handling message", ex);
@@ -289,8 +288,8 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
         for(File f: files) {
             String tmp=f.getName();
             Tuple<Address,String> t=filenameToAddress(tmp);
-            String logical_name=t.getVal2();
-            Address uuid=t.getVal1();
+            String logical_name=t.val2();
+            Address uuid=t.val1();
             if(!cache.containsKey(uuid))
                 cache.putIfAbsent(uuid, createBuffer(uuid, logical_name, false, tp.getThreadFactory()));
             tp.addPhysicalAddressToCache(uuid, tp.localPhysicalAddress());

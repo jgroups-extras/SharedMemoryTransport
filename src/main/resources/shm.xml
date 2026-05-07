@@ -15,11 +15,9 @@
             bind_addr="loopback"
             location="/tmp/shm/"
             queue_capacity="16M"
-            use_fibers="${use_fibers:true}"
-            loopback_separate_thread="false"
+            use_vthreads="${use_vthreads:true}"
             max_sleep="1"
     />
-    <!--RED /-->
     <PING />
     <MERGE3 max_interval="30000"
             min_interval="10000"/>

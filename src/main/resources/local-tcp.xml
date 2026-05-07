@@ -17,9 +17,7 @@
             recv_buf_size="500K"
             send_buf_size="500K"
             tcp_nodelay="false"
-            use_fibers="${use_fibers:true}"
-            loopback_separate_thread="false"
-
+            use_vthreads="${use_vthreads:true}"
             local_transport_class="org.jgroups.protocols.shm.SharedMemoryLocalTransport"
             local_transport.location="/tmp/shm"
             local_transport.queue_capacity="16M"
