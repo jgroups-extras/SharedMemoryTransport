@@ -5,10 +5,9 @@
 CURRENT_DIR=`dirname $0`
 BASE_DIR="$CURRENT_DIR/../"
 POM=$BASE_DIR/pom.xml
-
-CURRENT_VERSION=`grep <version> $POM | head -1 | sed "s/version//g" |  sed "s/[[<>/]*//g" | tr -d " "`
+CURRENT_VERSION=`grep "<version>" $POM | head -1 | sed "s/version//g" |  sed "s/[[<>/]*//g" | tr -d " "`
 RELEASE_VERSION=`echo $CURRENT_VERSION | sed "s/-SNAPSHOT//g"`
-NEW_VERSION=`$BASE_DIR/bin/jgroups.sh org.jgroups.Version -incr $CURRENT_VERSION`
+NEW_VERSION=`java org.jgroups.Version -incr $CURRENT_VERSION`
 TARGET="$BASE_DIR/target/"
 REPO=`grep nexus.server.url pom.xml | head -1 | sed "s/<nexus.server.url>//g" | sed "s/<\/nexus.server.url>//g" | tr -d " "`
 TAG=`echo "jgroups-$CURRENT_VERSION" | sed "s/-SNAPSHOT//g"`
