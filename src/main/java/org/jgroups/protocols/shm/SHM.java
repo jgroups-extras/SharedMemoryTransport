@@ -137,7 +137,7 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
 
 
     @Override
-    public void sendUnicast(PhysicalAddress dest, byte[] data, int offset, int length) throws Exception {
+    public void sendUnicast(PhysicalAddress dest, ByteBuffer data) throws Exception {
         throw new UnsupportedOperationException("method sendUnicast() should not be called");
     }
 
@@ -158,21 +158,21 @@ public class SHM extends TP implements Consumer<ByteBuffer> {
 
 
     @Override
-    protected void sendTo(Address dest, byte[] buf, int offset, int length) throws Exception {
+    protected void sendTo(Address dest, ByteBuffer buf) throws Exception {
         SharedMemoryBuffer shm_buf=getOrCreateBuffer(dest);
         if(shm_buf == null)
             throw new IllegalStateException(String.format("buffer for %s not found", dest));
-        shm_buf.write(buf, offset, length);
+        shm_buf.write(buf);
     }
 
 
     @Override
-    protected void sendToAll(byte[] buf, int offset, int length) throws Exception {
+    protected void sendToAll(ByteBuffer buf) throws Exception {
         Set<Address> mbrs=cache.keySet();
         for(Address dest: mbrs) {
             if(Objects.equals(dest, local_addr))
                 continue;
-            sendTo(dest, buf, offset, length);
+            sendTo(dest, buf);
         }
     }
 

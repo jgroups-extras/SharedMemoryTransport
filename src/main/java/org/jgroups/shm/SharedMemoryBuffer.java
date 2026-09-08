@@ -100,6 +100,27 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
         return true;
     }
 
+    public boolean write(ByteBuffer buf) {
+        final ManyToOneBoundedChannel rb = this.rb;
+        final int length=buf.remaining();
+        final long claim = rb.tryClaim(1, length);
+        if(claim == ManyToOneBoundedChannel.INSUFFICIENT_CAPACITY) {
+            insufficient_capacity.increment();
+            return false;
+        }
+        try {
+            ByteBuffer dst=rb.buffer();
+            dst.put(buf);
+        }
+        catch(Exception ex) {
+            rb.abort(claim);
+        }
+        finally {
+            rb.commit(claim);
+        }
+        return true;
+    }
+
     /**
      * Read from the ringbuffer and call receiver.receive(). As ManyToOneRingBuffer.read() doesn't block until data is
      * available, back off (yield, park etc) until data is available, to avoid burning CPU.

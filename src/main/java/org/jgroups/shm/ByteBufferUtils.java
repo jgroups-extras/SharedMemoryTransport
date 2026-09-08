@@ -1,5 +1,7 @@
 package org.jgroups.shm;
 
+import sun.misc.Unsafe;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.ref.Reference;
@@ -9,8 +11,6 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
 import java.util.Arrays;
-
-import sun.misc.Unsafe;
 
 public class ByteBufferUtils {
 

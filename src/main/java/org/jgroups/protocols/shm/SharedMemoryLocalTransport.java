@@ -183,13 +183,17 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
         }
     }
 
-
     @Override
     public void sendTo(Address dest, byte[] buf, int offset, int length) throws Exception {
         _sendTo(dest, buf, offset, length);
         num_unicasts.increment();
     }
 
+    @Override
+    public void sendTo(Address dest, ByteBuffer buf) throws Exception {
+        _sendTo(dest, buf);
+        num_unicasts.increment();
+    }
 
     @Override
     public void sendToAll(byte[] buf, int offset, int length) throws Exception {
@@ -206,6 +210,20 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
         num_mcasts.increment();
     }
 
+    @Override
+    public void sendToAll(ByteBuffer buf) throws Exception {
+        Set<Address>  mbrs=members;
+        if(mbrs == null || mbrs.isEmpty())
+            mbrs=tp.getLogicalAddressCache().keySet();
+
+        for(Address dest: mbrs) {
+            if(Objects.equals(dest, tp.getAddress()))
+                continue;
+            if(isLocalMember(dest)) // takes null values into account
+                _sendTo(dest, buf);
+        }
+        num_mcasts.increment();
+    }
 
     protected void _sendTo(Address dest, byte[] buf, int offset, int length) throws Exception {
         SharedMemoryBuffer shm_buf=getOrCreateBuffer(dest);
@@ -214,6 +232,12 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
         shm_buf.write(buf, offset, length);
     }
 
+    protected void _sendTo(Address dest, ByteBuffer buf) throws Exception {
+        SharedMemoryBuffer shm_buf=getOrCreateBuffer(dest);
+        if(shm_buf == null)
+            throw new IllegalStateException(String.format("buffer for %s not found", dest));
+        shm_buf.write(buf);
+    }
 
     protected SharedMemoryBuffer createBuffer(Address addr, String logical_name, boolean create,
                                               ThreadFactory thread_factory) throws IOException {
@@ -271,12 +295,15 @@ public class SharedMemoryLocalTransport implements LocalTransport, Consumer<Byte
 
     protected SharedMemoryBuffer getOrCreateBuffer(Address addr) throws IOException {
         SharedMemoryBuffer shm_buf=cache.get(addr);
-        if(shm_buf == null) {
-            shm_buf=createBuffer(addr, null, false, tp.getThreadFactory());
-            SharedMemoryBuffer tmp=cache.putIfAbsent(addr, shm_buf);
-            if(tmp != null)
-                shm_buf=tmp;
-        }
+        if(shm_buf == null)
+            shm_buf=cache.computeIfAbsent(addr, a ->  {
+                try {
+                    return createBuffer(a, null, false, tp.getThreadFactory());
+                }
+                catch(IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
         return shm_buf;
     }
 
