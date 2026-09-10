@@ -110,7 +110,8 @@ public class SharedMemoryBuffer implements MessageHandler, Closeable {
         }
         try {
             ByteBuffer dst=rb.buffer();
-            dst.put(buf);
+            int idx=claimedIndex(claim);
+            dst.put(idx, buf, buf.position(), buf.remaining());
         }
         catch(Exception ex) {
             rb.abort(claim);
