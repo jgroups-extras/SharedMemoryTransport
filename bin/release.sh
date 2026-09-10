@@ -10,7 +10,7 @@ RELEASE_VERSION=`echo $CURRENT_VERSION | sed "s/-SNAPSHOT//g"`
 NEW_VERSION=`java org.jgroups.Version -incr $CURRENT_VERSION`
 TARGET="$BASE_DIR/target/"
 REPO=`grep nexus.server.url pom.xml | head -1 | sed "s/<nexus.server.url>//g" | sed "s/<\/nexus.server.url>//g" | tr -d " "`
-TAG=`echo "jgroups-$CURRENT_VERSION" | sed "s/-SNAPSHOT//g"`
+TAG=`echo "shm-$CURRENT_VERSION" | sed "s/-SNAPSHOT//g"`
 
 echo ""
 echo "release version: $RELEASE_VERSION"
